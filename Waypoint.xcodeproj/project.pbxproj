@@ -6,27 +6,8 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXContainerItemProxy section */
-		D888D3892E9974050042DCDB /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D888D3732E9974030042DCDB /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = D888D37A2E9974030042DCDB;
-			remoteInfo = Waypoint;
-		};
-		D888D3932E9974050042DCDB /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D888D3732E9974030042DCDB /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = D888D37A2E9974030042DCDB;
-			remoteInfo = Waypoint;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
 		D888D37B2E9974030042DCDB /* Waypoint.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Waypoint.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		D888D3882E9974050042DCDB /* WaypointTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WaypointTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D888D3922E9974050042DCDB /* WaypointUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WaypointUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,34 +16,10 @@
 			path = Waypoint;
 			sourceTree = "<group>";
 		};
-		D888D38B2E9974050042DCDB /* WaypointTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = WaypointTests;
-			sourceTree = "<group>";
-		};
-		D888D3952E9974050042DCDB /* WaypointUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = WaypointUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		D888D3782E9974030042DCDB /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D888D3852E9974050042DCDB /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D888D38F2E9974050042DCDB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -76,8 +33,6 @@
 			isa = PBXGroup;
 			children = (
 				D888D37D2E9974030042DCDB /* Waypoint */,
-				D888D38B2E9974050042DCDB /* WaypointTests */,
-				D888D3952E9974050042DCDB /* WaypointUITests */,
 				D888D37C2E9974030042DCDB /* Products */,
 			);
 			sourceTree = "<group>";
@@ -86,8 +41,6 @@
 			isa = PBXGroup;
 			children = (
 				D888D37B2E9974030042DCDB /* Waypoint.app */,
-				D888D3882E9974050042DCDB /* WaypointTests.xctest */,
-				D888D3922E9974050042DCDB /* WaypointUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -117,52 +70,6 @@
 			productReference = D888D37B2E9974030042DCDB /* Waypoint.app */;
 			productType = "com.apple.product-type.application";
 		};
-		D888D3872E9974050042DCDB /* WaypointTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D888D39F2E9974050042DCDB /* Build configuration list for PBXNativeTarget "WaypointTests" */;
-			buildPhases = (
-				D888D3842E9974050042DCDB /* Sources */,
-				D888D3852E9974050042DCDB /* Frameworks */,
-				D888D3862E9974050042DCDB /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				D888D38A2E9974050042DCDB /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				D888D38B2E9974050042DCDB /* WaypointTests */,
-			);
-			name = WaypointTests;
-			packageProductDependencies = (
-			);
-			productName = WaypointTests;
-			productReference = D888D3882E9974050042DCDB /* WaypointTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		D888D3912E9974050042DCDB /* WaypointUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D888D3A22E9974050042DCDB /* Build configuration list for PBXNativeTarget "WaypointUITests" */;
-			buildPhases = (
-				D888D38E2E9974050042DCDB /* Sources */,
-				D888D38F2E9974050042DCDB /* Frameworks */,
-				D888D3902E9974050042DCDB /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				D888D3942E9974050042DCDB /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				D888D3952E9974050042DCDB /* WaypointUITests */,
-			);
-			name = WaypointUITests;
-			packageProductDependencies = (
-			);
-			productName = WaypointUITests;
-			productReference = D888D3922E9974050042DCDB /* WaypointUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -175,14 +82,6 @@
 				TargetAttributes = {
 					D888D37A2E9974030042DCDB = {
 						CreatedOnToolsVersion = 26.0;
-					};
-					D888D3872E9974050042DCDB = {
-						CreatedOnToolsVersion = 26.0;
-						TestTargetID = D888D37A2E9974030042DCDB;
-					};
-					D888D3912E9974050042DCDB = {
-						CreatedOnToolsVersion = 26.0;
-						TestTargetID = D888D37A2E9974030042DCDB;
 					};
 				};
 			};
@@ -201,28 +100,12 @@
 			projectRoot = "";
 			targets = (
 				D888D37A2E9974030042DCDB /* Waypoint */,
-				D888D3872E9974050042DCDB /* WaypointTests */,
-				D888D3912E9974050042DCDB /* WaypointUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		D888D3792E9974030042DCDB /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D888D3862E9974050042DCDB /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D888D3902E9974050042DCDB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -239,34 +122,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D888D3842E9974050042DCDB /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D888D38E2E9974050042DCDB /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		D888D38A2E9974050042DCDB /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = D888D37A2E9974030042DCDB /* Waypoint */;
-			targetProxy = D888D3892E9974050042DCDB /* PBXContainerItemProxy */;
-		};
-		D888D3942E9974050042DCDB /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = D888D37A2E9974030042DCDB /* Waypoint */;
-			targetProxy = D888D3932E9974050042DCDB /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		D888D39A2E9974050042DCDB /* Debug */ = {
@@ -400,6 +256,9 @@
 				DEVELOPMENT_TEAM = H74552K78K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenWaypoint;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.navigation";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Waypoint needs your location to show your position on the map";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -432,6 +291,9 @@
 				DEVELOPMENT_TEAM = H74552K78K;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenWaypoint;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.navigation";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Waypoint needs your location to show your position on the map";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -454,90 +316,6 @@
 			};
 			name = Release;
 		};
-		D888D3A02E9974050042DCDB /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = H74552K78K;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Braun-Group.WaypointTests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Waypoint.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Waypoint";
-			};
-			name = Debug;
-		};
-		D888D3A12E9974050042DCDB /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = H74552K78K;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Braun-Group.WaypointTests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Waypoint.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Waypoint";
-			};
-			name = Release;
-		};
-		D888D3A32E9974050042DCDB /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = H74552K78K;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Braun-Group.WaypointUITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = Waypoint;
-			};
-			name = Debug;
-		};
-		D888D3A42E9974050042DCDB /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = H74552K78K;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Braun-Group.WaypointUITests";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				STRING_CATALOG_GENERATE_SYMBOLS = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = Waypoint;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -555,24 +333,6 @@
 			buildConfigurations = (
 				D888D39D2E9974050042DCDB /* Debug */,
 				D888D39E2E9974050042DCDB /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		D888D39F2E9974050042DCDB /* Build configuration list for PBXNativeTarget "WaypointTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D888D3A02E9974050042DCDB /* Debug */,
-				D888D3A12E9974050042DCDB /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		D888D3A22E9974050042DCDB /* Build configuration list for PBXNativeTarget "WaypointUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D888D3A32E9974050042DCDB /* Debug */,
-				D888D3A42E9974050042DCDB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
