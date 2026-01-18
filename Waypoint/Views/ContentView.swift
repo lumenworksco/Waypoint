@@ -1,37 +1,30 @@
 import SwiftUI
 import MapKit
+import UIKit
 
-// Helper extension to make CLLocationCoordinate2D equatable
-extension CLLocationCoordinate2D: Equatable {
-    public static func == (lhs: CLLocationCoordinate2D, rhs: CLLocationCoordinate2D) -> Bool {
-        lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
-    }
+private enum ActiveSheet: Identifiable {
+    case add
+    var id: Int { hashValue }
 }
 
 struct ContentView: View {
     @StateObject private var locationMgr = LocationManager()
-    @StateObject private var weatherMgr = WeatherManager()
     @StateObject private var waypointMgr = WaypointManager()
     
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 20, longitude: 0),
         span: MKCoordinateSpan(latitudeDelta: 100, longitudeDelta: 100)
     )
-    @State private var mapType: MapDisplayType = .standard
     @State private var selected: WaypointModel?
     @State private var distance = ""
     @State private var newName = ""
     @State private var newNotes = ""
-    @State private var showAdd = false
-    @State private var showList = false
-    @State private var showWeather = false
-    @State private var showMapType = false
+    @State private var activeSheet: ActiveSheet? = nil
     
     var body: some View {
         ZStack {
             OSMMapView(
                 region: $region,
-                mapType: $mapType,
                 userLocation: locationMgr.userLocation,
                 waypoints: waypointMgr.waypoints,
                 onTap: { wp in
@@ -39,12 +32,22 @@ struct ContentView: View {
                     if let loc = locationMgr.userLocation {
                         distance = waypointMgr.distance(from: loc, to: wp)
                     }
+                    let _impact = UIImpactFeedbackGenerator(style: .light)
+                    _impact.impactOccurred()
+                },
+                onLongPressAt: { coord in
+                    newName = "Waypoint \(waypointMgr.waypoints.count + 1)"
+                    newNotes = ""
+                    // Add directly without sheet for smoothness
+                    waypointMgr.add(name: newName, coord: coord, notes: newNotes)
+                    let _notify = UINotificationFeedbackGenerator()
+                    _notify.notificationOccurred(.success)
                 }
             )
             .ignoresSafeArea()
             
             VStack {
-                HeaderView(weather: weatherMgr, location: locationMgr, onTap: { showWeather.toggle() })
+                HeaderView(location: locationMgr)
                 Spacer()
                 
                 if let wp = selected {
@@ -52,67 +55,52 @@ struct ContentView: View {
                         waypoint: wp,
                         distance: distance,
                         onNavigate: { navigate(to: wp) },
-                        onDelete: { waypointMgr.delete(wp); selected = nil },
-                        onClose: { withAnimation { selected = nil } }
+                        onDelete: {
+                            let _notify = UINotificationFeedbackGenerator()
+                            _notify.notificationOccurred(.warning)
+                            waypointMgr.delete(wp); selected = nil
+                        },
+                        onClose: { withAnimation(.snappy) { selected = nil } },
+                        onUpdate: { name, notes in
+                            waypointMgr.update(wp, name: name, notes: notes)
+                        }
                     )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
                 
                 ControlButtons(
-                    waypointCount: waypointMgr.waypoints.count,
                     hasLocation: locationMgr.userLocation != nil,
-                    onList: { showList.toggle() },
-                    onMapType: { showMapType.toggle() },
-                    onAdd: {
-                        newName = "Waypoint \(waypointMgr.waypoints.count + 1)"
-                        newNotes = ""
-                        showAdd.toggle()
-                    },
                     onCenter: centerOnUser
                 )
             }
         }
+        // Start location updates when the view appears
         .onAppear { locationMgr.start() }
-        .onChange(of: locationMgr.userLocation) { _, loc in
-            if let loc = loc { weatherMgr.fetch(for: loc) }
-        }
-        .sheet(isPresented: $showAdd) {
-            AddWaypointSheet(
-                name: $newName,
-                notes: $newNotes,
-                location: locationMgr.userLocation,
-                onSave: {
-                    if let loc = locationMgr.userLocation {
-                        waypointMgr.add(name: newName, coord: loc, notes: newNotes)
-                    }
-                    showAdd = false
-                },
-                onCancel: { showAdd = false }
-            )
-        }
-        .sheet(isPresented: $showList) {
-            WaypointsListSheet(
-                waypoints: waypointMgr.waypoints,
-                onTap: { navigate(to: $0); showList = false },
-                onDelete: waypointMgr.delete,
-                onDismiss: { showList = false }
-            )
-        }
-        .sheet(isPresented: $showWeather) {
-            WeatherDetailSheet(
-                weather: weatherMgr.weather,
-                icon: weatherMgr.icon(for: weatherMgr.weather?.weather.first?.icon ?? ""),
-                onDismiss: { showWeather = false }
-            )
-        }
-        .sheet(isPresented: $showMapType) {
-            MapTypeSelectorSheet(selected: $mapType, onDismiss: { showMapType = false })
+        
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .add:
+                AddWaypointSheet(
+                    name: $newName,
+                    notes: $newNotes,
+                    location: locationMgr.userLocation,
+                    onSave: {
+                        if let loc = locationMgr.userLocation {
+                            waypointMgr.add(name: newName, coord: loc, notes: newNotes)
+                        }
+                        activeSheet = nil
+                    },
+                    onCancel: { activeSheet = nil }
+                )
+            }
         }
     }
     
     private func centerOnUser() {
+        let _impact = UIImpactFeedbackGenerator(style: .light)
+        _impact.impactOccurred()
         guard let loc = locationMgr.userLocation else { return }
-        withAnimation {
+        withAnimation(.snappy) {
             region = MKCoordinateRegion(
                 center: loc,
                 span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
@@ -121,7 +109,7 @@ struct ContentView: View {
     }
     
     private func navigate(to wp: WaypointModel) {
-        withAnimation {
+        withAnimation(.snappy) {
             region = MKCoordinateRegion(
                 center: wp.coordinate,
                 span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)

@@ -13,7 +13,9 @@ struct AddWaypointSheet: View {
             Form {
                 Section("Details") {
                     TextField("Name", text: $name)
+                        .accessibilityIdentifier("NameField")
                     TextField("Notes (optional)", text: $notes)
+                        .accessibilityIdentifier("NotesField")
                 }
                 if let loc = location {
                     Section("Location") {
@@ -26,9 +28,12 @@ struct AddWaypointSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
+                        .accessibilityIdentifier("CancelAddButton")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save", action: onSave).disabled(name.isEmpty)
+                    Button("Save", action: onSave)
+                        .disabled(name.isEmpty)
+                        .accessibilityIdentifier("SaveWaypointButton")
                 }
             }
         }

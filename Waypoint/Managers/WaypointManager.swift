@@ -26,6 +26,14 @@ class WaypointManager: ObservableObject {
         save()
     }
     
+    func update(_ waypoint: WaypointModel, name: String, notes: String) {
+        if let idx = waypoints.firstIndex(where: { $0.id == waypoint.id }) {
+            waypoints[idx].name = name
+            waypoints[idx].notes = notes
+            save()
+        }
+    }
+    
     func distance(from userLoc: CLLocationCoordinate2D, to waypoint: WaypointModel) -> String {
         let user = CLLocation(latitude: userLoc.latitude, longitude: userLoc.longitude)
         let dest = CLLocation(latitude: waypoint.coordinate.latitude, longitude: waypoint.coordinate.longitude)

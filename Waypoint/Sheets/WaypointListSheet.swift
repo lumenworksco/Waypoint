@@ -19,10 +19,13 @@ struct WaypointsListSheet: View {
                             Text(wp.timestamp, style: .date).font(.caption2).foregroundColor(.gray)
                         }
                     }
+                    .accessibilityLabel("Open waypoint \(wp.name)")
+                    .accessibilityHint("Shows this waypoint on the map")
                 }
                 .onDelete(perform: onDelete)
             }
             .navigationTitle("Waypoints (\(waypoints.count))")
+            .accessibilityIdentifier("WaypointsList")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done", action: onDismiss)

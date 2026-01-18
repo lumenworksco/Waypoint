@@ -2,53 +2,41 @@ import SwiftUI
 import CoreLocation
 
 struct HeaderView: View {
-    @ObservedObject var weather: WeatherManager
     @ObservedObject var location: LocationManager
-    let onTap: () -> Void
     
     var body: some View {
         HStack {
-            Group {
-                if let w = weather.weather {
-                    HStack(spacing: 12) {
-                        Image(systemName: weather.icon(for: w.weather.first?.icon ?? ""))
-                            .font(.system(size: 28))
-                            .foregroundColor(.blue)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(Int(w.main.temp))°C")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            Text(w.weather.first?.description.capitalized ?? "")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
+            HStack(spacing: 12) {
+                Image(systemName: location.userLocation != nil ? "location.fill" : "location")
+                    .font(.system(size: 28))
+                    .foregroundColor(.blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(location.userLocation != nil ? "Location Ready" : "Waiting for Location")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    if let loc = location.userLocation {
+                        Text(String(format: "%.4f, %.4f", loc.latitude, loc.longitude))
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                            .accessibilityIdentifier("UserCoordinateLabel")
+                    } else {
+                        Text("Enable Location Services")
+                            .font(.caption)
+                            .foregroundColor(.gray)
                     }
-                    .padding(10)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(10)
-                } else {
-                    HStack(spacing: 12) {
-                        Image(systemName: weather.isLoading ? "hourglass.circle" : "cloud")
-                            .font(.system(size: 28))
-                            .foregroundColor(.blue)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(weather.isLoading ? "Loading..." : "Weather Info")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                            Text(location.userLocation != nil ? "Waiting for data" : "Waiting for location")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .padding(10)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(10)
                 }
             }
+            .padding(10)
+            .background(.ultraThinMaterial)
+            .cornerRadius(10)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(location.userLocation != nil ? "Location Ready" : "Waiting for Location")
+            .accessibilityHint(location.userLocation != nil ? String(format: "Latitude %.4f, Longitude %.4f", location.userLocation!.latitude, location.userLocation!.longitude) : "Enable Location Services")
             
             Spacer()
         }
         .padding()
+        .accessibilityElement(children: .contain)
     }
 }
 
