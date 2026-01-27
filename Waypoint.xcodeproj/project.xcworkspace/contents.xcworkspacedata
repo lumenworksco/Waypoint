@@ -5,6 +5,24 @@
       location = "self:">
    </FileRef>
    <FileRef
-      location = "group:README.md">
+      location = "group:Haptics.swift">
+   </FileRef>
+   <FileRef
+      location = "group:AppSettings 2.swift">
+   </FileRef>
+   <FileRef
+      location = "group:SettingsView.swift">
+   </FileRef>
+   <FileRef
+      location = "group:AppSettings 3.swift">
+   </FileRef>
+   <FileRef
+      location = "group:AppSettings 4.swift">
+   </FileRef>
+   <FileRef
+      location = "group:OSMMapView_Previews.swift">
+   </FileRef>
+   <FileRef
+      location = "group:WaypointApp_Previews.swift">
    </FileRef>
 </Workspace>

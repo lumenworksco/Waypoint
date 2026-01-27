@@ -20,6 +20,24 @@ struct WaypointModel: Identifiable, Codable {
         self.notes = notes
     }
     
+    // Convenience initializer to ease call sites that don't pass `coordinate:` explicitly
+    init(id: UUID = UUID(), name: String, notes: String = "", latitude: Double, longitude: Double, timestamp: Date = Date()) {
+        self.id = id
+        self.name = name
+        self.coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        self.timestamp = timestamp
+        self.notes = notes
+    }
+
+    // Fallback initializer providing a zero coordinate to avoid missing argument errors in older call sites
+    init(id: UUID = UUID(), name: String, timestamp: Date = Date(), notes: String = "") {
+        self.id = id
+        self.name = name
+        self.coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
+        self.timestamp = timestamp
+        self.notes = notes
+    }
+    
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)

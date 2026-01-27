@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct WaypointDetailCard: View {
     let waypoint: WaypointModel
@@ -86,12 +87,11 @@ struct WaypointDetailCard: View {
                     .accessibilityLabel("Cancel edit")
                     .accessibilityHint("Discard changes to this waypoint")
                     Button("Save") {
-                        let trimmedName = editName.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let trimmedNotes = editNotes.trimmingCharacters(in: .whitespacesAndNewlines)
-                        guard !trimmedName.isEmpty else { return }
+                        let trimmedName = Validation.trimmed(editName)
+                        let trimmedNotes = Validation.trimmed(editNotes)
+                        guard Validation.isNonEmpty(trimmedName) else { return }
                         onUpdate?(trimmedName, trimmedNotes)
-                        let _notify = UINotificationFeedbackGenerator()
-                        _notify.notificationOccurred(.success)
+                        Haptics.success()
                         focusedField = nil
                         withAnimation(.snappy) { isEditing = false }
                     }
@@ -103,11 +103,12 @@ struct WaypointDetailCard: View {
                     Button(action: onNavigate) {
                         Label("Navigate", systemImage: "arrow.triangle.turn.up.right.circle.fill")
                             .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
                             .background(Color.blue)
                             .foregroundColor(.white)
                             .cornerRadius(8)
+                            .contentShape(Rectangle())
                             .accessibilityLabel("Navigate to waypoint")
                             .accessibilityHint("Centers the map on this waypoint")
                     }
@@ -122,11 +123,12 @@ struct WaypointDetailCard: View {
                     }) {
                         Label("Edit", systemImage: "pencil")
                             .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
                             .background(Color.gray.opacity(0.2))
                             .foregroundColor(.primary)
                             .cornerRadius(8)
+                            .contentShape(Rectangle())
                             .accessibilityLabel("Edit waypoint")
                             .accessibilityHint("Edit the name and notes for this waypoint")
                     }
@@ -134,11 +136,12 @@ struct WaypointDetailCard: View {
                     Button(action: onDelete) {
                         Label("Delete", systemImage: "trash.fill")
                             .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
                             .background(Color.red)
                             .foregroundColor(.white)
                             .cornerRadius(8)
+                            .contentShape(Rectangle())
                             .accessibilityLabel("Delete waypoint")
                             .accessibilityHint("Removes this waypoint from the list")
                     }
@@ -146,11 +149,30 @@ struct WaypointDetailCard: View {
             }
         }
         .padding()
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isEditing { focusedField = nil }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 if isEditing {
-                    Button("Done") { focusedField = nil }
+                    if focusedField == .name {
+                        Button("Next") { focusedField = .notes }
+                    } else if focusedField == .notes {
+                        Button("Save") {
+                            let trimmedName = Validation.trimmed(editName)
+                            let trimmedNotes = Validation.trimmed(editNotes)
+                            guard Validation.isNonEmpty(trimmedName) else { return }
+                            onUpdate?(trimmedName, trimmedNotes)
+                            Haptics.success()
+                            focusedField = nil
+                            withAnimation(.snappy) { isEditing = false }
+                        }
+                        .disabled(!Validation.isNonEmpty(editName))
+                    } else {
+                        Button("Done") { focusedField = nil }
+                    }
                 }
             }
         }
@@ -159,4 +181,23 @@ struct WaypointDetailCard: View {
         .shadow(color: Color.black.opacity(0.1), radius: 12, x: 0, y: 4)
         .padding()
     }
+}
+
+#Preview("Waypoint Detail Card - Editing") {
+    let sample = WaypointModel(
+        id: UUID(),
+        name: "Sample Point",
+        notes: "A note",
+        latitude: 37.332,
+        longitude: -122.011,
+        timestamp: Date()
+    )
+    WaypointDetailCard(
+        waypoint: sample,
+        distance: "120 m",
+        onNavigate: {},
+        onDelete: {},
+        onClose: {},
+        onUpdate: { _, _ in }
+    )
 }
