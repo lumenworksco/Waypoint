@@ -10,22 +10,9 @@
 		D888D37B2E9974030042DCDB /* Waypoint.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Waypoint.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		D85813AF2F1D66060038B21A /* Exceptions for "Waypoint" folder in "Waypoint" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Views/Info.plist,
-			);
-			target = D888D37A2E9974030042DCDB /* Waypoint */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D888D37D2E9974030042DCDB /* Waypoint */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				D85813AF2F1D66060038B21A /* Exceptions for "Waypoint" folder in "Waypoint" target */,
-			);
 			path = Waypoint;
 			sourceTree = "<group>";
 		};
