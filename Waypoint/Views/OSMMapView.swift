@@ -40,24 +40,38 @@ struct OSMMapView: UIViewRepresentable {
     }
     
     func updateUIView(_ map: MKMapView, context: Context) {
-        // Clamp zoom levels
-        let minDelta: CLLocationDegrees = 0.00015
-        let maxDelta: CLLocationDegrees = 180
-        let clampedLatDelta = min(max(region.span.latitudeDelta, minDelta), maxDelta)
-        let clampedLonDelta = min(max(region.span.longitudeDelta, minDelta), maxDelta)
-        let clampedRegion = MKCoordinateRegion(
-            center: region.center,
-            span: MKCoordinateSpan(latitudeDelta: clampedLatDelta, longitudeDelta: clampedLonDelta)
+        // Only set region when it meaningfully differs from what the map already shows
+        let current = map.region
+        let latDiff = abs(current.center.latitude - region.center.latitude)
+        let lonDiff = abs(current.center.longitude - region.center.longitude)
+        let spanLatDiff = abs(current.span.latitudeDelta - region.span.latitudeDelta)
+        let spanLonDiff = abs(current.span.longitudeDelta - region.span.longitudeDelta)
+        if latDiff > 0.0001 || lonDiff > 0.0001 || spanLatDiff > 0.001 || spanLonDiff > 0.001 {
+            map.setRegion(region, animated: true)
+        }
+
+        // Diff annotations to avoid removing and re-adding everything
+        let existingByID = Dictionary(
+            uniqueKeysWithValues: map.annotations.compactMap { $0 as? WaypointAnnotation }.map { ($0.id, $0) }
         )
-        // Update binding to keep state consistent
-        region = clampedRegion
-        map.setRegion(clampedRegion, animated: true)
-        
-        map.removeAnnotations(map.annotations)
-        
-        for wp in waypoints {
+        let newIDs = Set(waypoints.map(\.id))
+        let existingIDs = Set(existingByID.keys)
+
+        // Remove stale annotations
+        for id in existingIDs.subtracting(newIDs) {
+            if let ann = existingByID[id] { map.removeAnnotation(ann) }
+        }
+        // Add new annotations
+        for wp in waypoints where !existingIDs.contains(wp.id) {
             let ann = WaypointAnnotation(id: wp.id, coordinate: wp.coordinate, title: wp.name, subtitle: wp.notes)
             map.addAnnotation(ann)
+        }
+        // Update existing annotations
+        for wp in waypoints {
+            if let ann = existingByID[wp.id] {
+                ann.title = wp.name
+                ann.subtitle = wp.notes
+            }
         }
     }
     
@@ -67,9 +81,9 @@ struct OSMMapView: UIViewRepresentable {
     
     class Coordinator: NSObject, MKMapViewDelegate {
         var parent: OSMMapView
-        
+
         private var regionUpdateWorkItem: DispatchWorkItem?
-        
+
         init(_ parent: OSMMapView) {
             self.parent = parent
         }
@@ -124,15 +138,7 @@ struct OSMMapView: UIViewRepresentable {
             regionUpdateWorkItem?.cancel()
             let item = DispatchWorkItem { [weak self] in
                 guard let self = self else { return }
-                let minDelta: CLLocationDegrees = 0.00015
-                let maxDelta: CLLocationDegrees = 180
-                let span = map.region.span
-                let clampedLatDelta = min(max(span.latitudeDelta, minDelta), maxDelta)
-                let clampedLonDelta = min(max(span.longitudeDelta, minDelta), maxDelta)
-                self.parent.region = MKCoordinateRegion(
-                    center: map.region.center,
-                    span: MKCoordinateSpan(latitudeDelta: clampedLatDelta, longitudeDelta: clampedLonDelta)
-                )
+                self.parent.region = map.region
             }
             regionUpdateWorkItem = item
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: item)

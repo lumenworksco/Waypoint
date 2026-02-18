@@ -1,24 +1,9 @@
 import SwiftUI
 import CoreLocation
-import UIKit
 
-// Lightweight helpers to make this view compile in isolation.
-private enum Validation {
+enum Validation {
     static func isNonEmpty(_ text: String) -> Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-}
-
-private enum Haptics {
-    static func success() {
-        #if canImport(UIKit)
-        import UIKit
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        #elseif canImport(AppKit)
-        // Provide a light haptic on macOS when available; otherwise no-op
-        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
-        #else
-        // Fallback no-op on other platforms
-        #endif
-    }
+    static func trimmed(_ text: String) -> String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
 }
 
 struct AddWaypointSheet: View {
