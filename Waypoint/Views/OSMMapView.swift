@@ -40,6 +40,9 @@ struct OSMMapView: UIViewRepresentable {
     }
     
     func updateUIView(_ map: MKMapView, context: Context) {
+        // Keep the coordinator in sync with the latest SwiftUI state
+        context.coordinator.parent = self
+
         // Only set region when it meaningfully differs from what the map already shows
         let current = map.region
         let latDiff = abs(current.center.latitude - region.center.latitude)
@@ -66,11 +69,15 @@ struct OSMMapView: UIViewRepresentable {
             let ann = WaypointAnnotation(id: wp.id, coordinate: wp.coordinate, title: wp.name, subtitle: wp.notes)
             map.addAnnotation(ann)
         }
-        // Update existing annotations
+        // Update existing annotations – remove and re-add if title or notes changed
+        // because MKMapView caches the marker label and won't refresh it otherwise.
         for wp in waypoints {
             if let ann = existingByID[wp.id] {
-                ann.title = wp.name
-                ann.subtitle = wp.notes
+                if ann.title != wp.name || ann.subtitle != wp.notes {
+                    map.removeAnnotation(ann)
+                    let updated = WaypointAnnotation(id: wp.id, coordinate: wp.coordinate, title: wp.name, subtitle: wp.notes)
+                    map.addAnnotation(updated)
+                }
             }
         }
     }
@@ -94,42 +101,25 @@ struct OSMMapView: UIViewRepresentable {
         
         func mapView(_ map: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if annotation is MKUserLocation { return nil }
-            
-            let view = map.dequeueReusableAnnotationView(withIdentifier: "Pin") as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: "Pin")
+            guard let wa = annotation as? WaypointAnnotation else { return nil }
+
+            let view = map.dequeueReusableAnnotationView(withIdentifier: "Pin") as? MKMarkerAnnotationView
+                ?? MKMarkerAnnotationView(annotation: annotation, reuseIdentifier: "Pin")
             view.annotation = annotation
-            view.canShowCallout = true
-            
-            if let wa = annotation as? WaypointAnnotation {
-                view.markerTintColor = .systemRed
-                view.glyphImage = UIImage(systemName: "mappin")
-                
-                view.accessibilityLabel = wa.title ?? "Waypoint"
-                view.accessibilityHint = "Double-tap to select waypoint"
-                view.accessibilityTraits.insert(.button)
-            } else if annotation.title == "Your Location" {
-                view.markerTintColor = .systemBlue
-                view.glyphImage = UIImage(systemName: "location.fill")
-                
-                view.accessibilityLabel = "Your Location"
-                view.accessibilityHint = "Shows your current position"
-                view.accessibilityTraits.insert(.staticText)
-            } else {
-                view.markerTintColor = .systemRed
-                view.glyphImage = UIImage(systemName: "mappin")
-            }
-            
+            view.canShowCallout = false
+            view.markerTintColor = .systemRed
+            view.glyphImage = UIImage(systemName: "mappin")
+            view.accessibilityLabel = wa.title ?? "Waypoint"
+            view.accessibilityHint = "Double-tap to select waypoint"
+            view.accessibilityTraits.insert(.button)
             return view
         }
         
         func mapView(_ map: MKMapView, didSelect view: MKAnnotationView) {
             guard let annotation = view.annotation else { return }
+            map.deselectAnnotation(annotation, animated: false)
             if let wa = annotation as? WaypointAnnotation,
                let wp = parent.waypoints.first(where: { $0.id == wa.id }) {
-                parent.onTap(wp)
-                return
-            }
-            // Fallback to coordinate match (e.g., user location)
-            if let wp = parent.waypoints.first(where: { $0.coordinate.latitude == annotation.coordinate.latitude && $0.coordinate.longitude == annotation.coordinate.longitude }) {
                 parent.onTap(wp)
             }
         }

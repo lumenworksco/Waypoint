@@ -1,12 +1,21 @@
 import Foundation
 import CoreLocation
 
-struct WaypointModel: Identifiable, Codable {
+struct WaypointModel: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
     let coordinate: CLLocationCoordinate2D
     let timestamp: Date
     var notes: String
+
+    static func == (lhs: WaypointModel, rhs: WaypointModel) -> Bool {
+        lhs.id == rhs.id
+            && lhs.name == rhs.name
+            && lhs.notes == rhs.notes
+            && lhs.timestamp == rhs.timestamp
+            && lhs.coordinate.latitude == rhs.coordinate.latitude
+            && lhs.coordinate.longitude == rhs.coordinate.longitude
+    }
     
     enum CodingKeys: String, CodingKey {
         case id, name, timestamp, notes, latitude, longitude
@@ -20,7 +29,6 @@ struct WaypointModel: Identifiable, Codable {
         self.notes = notes
     }
     
-    // Convenience initializer to ease call sites that don't pass `coordinate:` explicitly
     init(id: UUID = UUID(), name: String, notes: String = "", latitude: Double, longitude: Double, timestamp: Date = Date()) {
         self.id = id
         self.name = name
@@ -29,15 +37,6 @@ struct WaypointModel: Identifiable, Codable {
         self.notes = notes
     }
 
-    // Fallback initializer providing a zero coordinate to avoid missing argument errors in older call sites
-    init(id: UUID = UUID(), name: String, timestamp: Date = Date(), notes: String = "") {
-        self.id = id
-        self.name = name
-        self.coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
-        self.timestamp = timestamp
-        self.notes = notes
-    }
-    
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)

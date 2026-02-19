@@ -26,6 +26,3 @@ struct OSMMapView_Previews: PreviewProvider {
     }
 }
 #endif
-
-// Note: Ensure that other previews use valid initializers and argument labels. The OSMMapView initializer is:
-// OSMMapView(region:userLocation:waypoints:onTap:onLongPressAt:)

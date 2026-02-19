@@ -1,10 +1,8 @@
 import SwiftUI
-import UIKit
 
 struct WaypointDetailCard: View {
     let waypoint: WaypointModel
     let distance: String
-    let onNavigate: () -> Void
     let onDelete: () -> Void
     let onClose: () -> Void
     var onUpdate: ((String, String) -> Void)? = nil
@@ -16,50 +14,48 @@ struct WaypointDetailCard: View {
     private enum Field: Hashable { case name, notes }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 6) {
-                    if isEditing {
-                        VStack(alignment: .leading, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Name")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                TextField("Enter a name", text: $editName)
-                                    .textInputAutocapitalization(.words)
-                                    .autocorrectionDisabled(false)
-                                    .padding(10)
-                                    .background(Color(.secondarySystemBackground))
-                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                    .focused($focusedField, equals: .name)
-                                    .submitLabel(.next)
-                                    .onSubmit { focusedField = .notes }
-                                    .scaleEffect(focusedField == .name ? 1.02 : 1.0)
-                                    .animation(.snappy(duration: 0.15), value: focusedField)
-                            }
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Notes")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                TextField("Optional notes", text: $editNotes, axis: .vertical)
-                                    .lineLimit(1...4)
-                                    .padding(10)
-                                    .background(Color(.secondarySystemBackground))
-                                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                    .focused($focusedField, equals: .notes)
-                                    .submitLabel(.done)
-                                    .onSubmit { focusedField = nil }
-                                    .scaleEffect(focusedField == .notes ? 1.02 : 1.0)
-                                    .animation(.snappy(duration: 0.15), value: focusedField)
-                            }
+        VStack(alignment: .leading, spacing: 6) {
+            if isEditing {
+                VStack(alignment: .leading, spacing: 8) {
+                    TextField("Name", text: $editName)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled(false)
+                        .font(.subheadline)
+                        .padding(8)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .focused($focusedField, equals: .name)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .notes }
+                    TextField("Notes (optional)", text: $editNotes, axis: .vertical)
+                        .lineLimit(1...3)
+                        .font(.subheadline)
+                        .padding(8)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .focused($focusedField, equals: .notes)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
+                    HStack(spacing: 10) {
+                        Button("Cancel") {
+                            withAnimation(.snappy) { isEditing = false }
                         }
-                    } else {
+                        .font(.subheadline)
+                        Button("Save") { saveEdits() }
+                        .font(.subheadline.weight(.semibold))
+                        .buttonStyle(.borderedProminent)
+                        .disabled(editName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+            } else {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(waypoint.name)
-                            .font(.headline)
-                            .fontWeight(.bold)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
                         if !waypoint.notes.isEmpty {
                             Text(waypoint.notes)
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.gray)
                         }
                         if !distance.isEmpty {
@@ -68,51 +64,7 @@ struct WaypointDetailCard: View {
                                 .foregroundColor(.gray)
                         }
                     }
-                }
-                Spacer()
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
-                        .font(.system(size: 24))
-                        .accessibilityLabel("Close details")
-                        .accessibilityHint("Dismisses the waypoint details card")
-                }
-            }
-            
-            HStack(spacing: 12) {
-                if isEditing {
-                    Button("Cancel") {
-                        withAnimation(.snappy) { isEditing = false }
-                    }
-                    .accessibilityLabel("Cancel edit")
-                    .accessibilityHint("Discard changes to this waypoint")
-                    Button("Save") {
-                        let trimmedName = Validation.trimmed(editName)
-                        let trimmedNotes = Validation.trimmed(editNotes)
-                        guard Validation.isNonEmpty(trimmedName) else { return }
-                        onUpdate?(trimmedName, trimmedNotes)
-                        Haptics.success()
-                        focusedField = nil
-                        withAnimation(.snappy) { isEditing = false }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(editName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityLabel("Save changes")
-                    .accessibilityHint("Apply changes to this waypoint")
-                } else {
-                    Button(action: onNavigate) {
-                        Label("Navigate", systemImage: "arrow.triangle.turn.up.right.circle.fill")
-                            .font(.caption)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                            .contentShape(Rectangle())
-                            .accessibilityLabel("Navigate to waypoint")
-                            .accessibilityHint("Centers the map on this waypoint")
-                    }
-                    
+                    Spacer()
                     Button(action: {
                         withAnimation(.snappy) {
                             isEditing = true
@@ -121,34 +73,35 @@ struct WaypointDetailCard: View {
                             focusedField = .name
                         }
                     }) {
-                        Label("Edit", systemImage: "pencil")
-                            .font(.caption)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
+                        Image(systemName: "pencil")
+                            .font(.subheadline)
+                            .padding(8)
                             .background(Color.gray.opacity(0.2))
-                            .foregroundColor(.primary)
-                            .cornerRadius(8)
-                            .contentShape(Rectangle())
-                            .accessibilityLabel("Edit waypoint")
-                            .accessibilityHint("Edit the name and notes for this waypoint")
+                            .clipShape(Circle())
                     }
-                    
+                    .accessibilityLabel("Edit waypoint")
                     Button(action: onDelete) {
-                        Label("Delete", systemImage: "trash.fill")
-                            .font(.caption)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
+                        Image(systemName: "trash.fill")
+                            .font(.subheadline)
+                            .padding(8)
                             .background(Color.red)
                             .foregroundColor(.white)
-                            .cornerRadius(8)
-                            .contentShape(Rectangle())
-                            .accessibilityLabel("Delete waypoint")
-                            .accessibilityHint("Removes this waypoint from the list")
+                            .clipShape(Circle())
                     }
+                    .accessibilityLabel("Delete waypoint")
+                    Button(action: onClose) {
+                        Image(systemName: "xmark")
+                            .font(.caption2.weight(.semibold))
+                            .padding(8)
+                            .background(Color.gray.opacity(0.2))
+                            .foregroundColor(.secondary)
+                            .clipShape(Circle())
+                    }
+                    .accessibilityLabel("Close details")
                 }
             }
         }
-        .padding()
+        .padding(12)
         .contentShape(Rectangle())
         .onTapGesture {
             if isEditing { focusedField = nil }
@@ -160,15 +113,7 @@ struct WaypointDetailCard: View {
                     if focusedField == .name {
                         Button("Next") { focusedField = .notes }
                     } else if focusedField == .notes {
-                        Button("Save") {
-                            let trimmedName = Validation.trimmed(editName)
-                            let trimmedNotes = Validation.trimmed(editNotes)
-                            guard Validation.isNonEmpty(trimmedName) else { return }
-                            onUpdate?(trimmedName, trimmedNotes)
-                            Haptics.success()
-                            focusedField = nil
-                            withAnimation(.snappy) { isEditing = false }
-                        }
+                        Button("Save") { saveEdits() }
                         .disabled(!Validation.isNonEmpty(editName))
                     } else {
                         Button("Done") { focusedField = nil }
@@ -177,9 +122,23 @@ struct WaypointDetailCard: View {
             }
         }
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: Color.black.opacity(0.1), radius: 12, x: 0, y: 4)
-        .padding()
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+        .padding(.horizontal)
+    }
+
+    private func saveEdits() {
+        let trimmedName = Validation.trimmed(editName)
+        let trimmedNotes = Validation.trimmed(editNotes)
+        guard Validation.isNonEmpty(trimmedName) else { return }
+        focusedField = nil
+        isEditing = false
+        Haptics.success()
+        // Defer the update to the next run loop so isEditing = false
+        // is fully committed before the @Published re-render fires.
+        DispatchQueue.main.async {
+            onUpdate?(trimmedName, trimmedNotes)
+        }
     }
 }
 
@@ -195,7 +154,6 @@ struct WaypointDetailCard: View {
     WaypointDetailCard(
         waypoint: sample,
         distance: "120 m",
-        onNavigate: {},
         onDelete: {},
         onClose: {},
         onUpdate: { _, _ in }
