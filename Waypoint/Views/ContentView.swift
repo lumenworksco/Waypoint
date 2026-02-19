@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var selectedID: UUID?
     @State private var distance = ""
     @State private var showLongPressTip: Bool = true
+    @State private var hasCenteredOnUser = false
 
     /// Live lookup of the selected waypoint from the manager's array.
     private var selected: WaypointModel? {
@@ -98,6 +99,16 @@ struct ContentView: View {
             }
         }
         .onAppear { locationMgr.start() }
+        .onChange(of: locationMgr.userLocation?.latitude) {
+            guard !hasCenteredOnUser, let loc = locationMgr.userLocation else { return }
+            hasCenteredOnUser = true
+            withAnimation(.snappy) {
+                region = MKCoordinateRegion(
+                    center: loc,
+                    span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                )
+            }
+        }
     }
 
     private func centerOnUser() {
