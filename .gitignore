@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Xcode
 build/
 *.pbxuser
@@ -47,3 +48,45 @@ Thumbs.db
 *.swp
 *.swo
 *~
+=======
+# Built outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Build directories
+build/
+app/build/
+.gradle/
+
+# Local configuration (machine-specific, never commit)
+local.properties
+*.keystore
+*.jks
+
+# IDE files
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Android Studio navigation editor
+.navigation/
+
+# Gradle cache
+gradle/wrapper/gradle-wrapper.jar
+
+# Kotlin compiler output
+out/
+
+# Profiling
+captures/
+
+# Claude worktrees and config
+.claude/
+
+# Privacy policy (lives in separate repo)
+privacy-policy.html
+waypoint-privacy-policy/
+>>>>>>> repoB/main
