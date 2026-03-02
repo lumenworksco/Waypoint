@@ -12,8 +12,8 @@ class WaypointModel {
     required this.coordinate,
     DateTime? timestamp,
     this.notes = '',
-  })  : id = id ?? _uuid.v4(),
-        timestamp = timestamp ?? DateTime.now();
+  }) : id = id ?? _uuid.v4(),
+       timestamp = timestamp ?? DateTime.now();
 
   final String id;
   final String name;
@@ -22,33 +22,32 @@ class WaypointModel {
   final String notes;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'latitude': coordinate.latitude,
-        'longitude': coordinate.longitude,
-        'timestamp': timestamp.millisecondsSinceEpoch,
-        'notes': notes,
-      };
+    'id': id,
+    'name': name,
+    'latitude': coordinate.latitude,
+    'longitude': coordinate.longitude,
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'notes': notes,
+  };
 
   factory WaypointModel.fromJson(Map<String, dynamic> json) => WaypointModel(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        coordinate: LatLng(
-          (json['latitude'] as num).toDouble(),
-          (json['longitude'] as num).toDouble(),
-        ),
-        timestamp:
-            DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int),
-        notes: json['notes'] as String? ?? '',
-      );
+    id: json['id'] as String,
+    name: json['name'] as String,
+    coordinate: LatLng(
+      (json['latitude'] as num).toDouble(),
+      (json['longitude'] as num).toDouble(),
+    ),
+    timestamp: DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int),
+    notes: json['notes'] as String? ?? '',
+  );
 
   WaypointModel copyWith({String? name, String? notes}) => WaypointModel(
-        id: id,
-        name: name ?? this.name,
-        coordinate: coordinate,
-        timestamp: timestamp,
-        notes: notes ?? this.notes,
-      );
+    id: id,
+    name: name ?? this.name,
+    coordinate: coordinate,
+    timestamp: timestamp,
+    notes: notes ?? this.notes,
+  );
 
   static String encode(List<WaypointModel> waypoints) =>
       jsonEncode(waypoints.map((w) => w.toJson()).toList());

@@ -15,9 +15,9 @@ class LocationService {
   }
 
   Stream<Position> get positionStream => Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          distanceFilter: 2,
-        ),
-      );
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.best,
+      distanceFilter: 2,
+    ),
+  );
 }

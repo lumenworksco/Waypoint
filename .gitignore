@@ -1,6 +1,36 @@
-<<<<<<< HEAD
-# Xcode
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
 build/
+.pub/
+
+# Android
+android/.gradle/
+android/.kotlin/
+android/app/build/
+android/build/
+android/local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+*.keystore
+*.jks
+
+# iOS / Xcode
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/.symlinks/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -9,84 +39,49 @@ build/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
-xcuserdata/
 *.xccheckout
 *.moved-aside
-DerivedData/
 *.hmap
 *.ipa
-*.xcuserstate
 *.xcscmblueprint
-
-# Swift Package Manager
 .build/
 .swiftpm/
 Package.resolved
 
 # CocoaPods
 Pods/
-
-# Carthage
 Carthage/Build/
 
-# fastlane
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS / Windows
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+
+# Gradle
+gradle/wrapper/gradle-wrapper.jar
+captures/
+out/
+.navigation/
+
+# Claude
+.claude/
+
+# Fastlane
 fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
 
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-._*
-
-# Thumbnails
-Thumbs.db
-
-# IDE
-*.swp
-*.swo
-*~
-=======
-# Built outputs
-*.apk
-*.aab
-*.ap_
-*.dex
-
-# Build directories
-build/
-app/build/
-.gradle/
-
-# Local configuration (machine-specific, never commit)
-local.properties
-*.keystore
-*.jks
-
-# IDE files
-.idea/
-*.iml
-.DS_Store
-Thumbs.db
-
-# Android Studio navigation editor
-.navigation/
-
-# Gradle cache
-gradle/wrapper/gradle-wrapper.jar
-
-# Kotlin compiler output
-out/
-
-# Profiling
-captures/
-
-# Claude worktrees and config
-.claude/
-
-# Privacy policy (lives in separate repo)
+# Privacy policy (separate repo)
 privacy-policy.html
 waypoint-privacy-policy/
->>>>>>> repoB/main

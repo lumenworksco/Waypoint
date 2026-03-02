@@ -42,8 +42,9 @@ class WaypointState {
       waypoints: waypoints ?? this.waypoints,
       userLocation: userLocation ?? this.userLocation,
       locationEnabled: locationEnabled ?? this.locationEnabled,
-      selectedWaypoint:
-          clearSelected ? null : (selectedWaypoint ?? this.selectedWaypoint),
+      selectedWaypoint: clearSelected
+          ? null
+          : (selectedWaypoint ?? this.selectedWaypoint),
       showHint: showHint ?? this.showHint,
       isRecenterRequested: isRecenterRequested ?? this.isRecenterRequested,
       hasCenteredOnUser: hasCenteredOnUser ?? this.hasCenteredOnUser,
@@ -53,7 +54,7 @@ class WaypointState {
 
 class WaypointNotifier extends StateNotifier<WaypointState> {
   WaypointNotifier(this._repository, this._locationService)
-      : super(const WaypointState()) {
+    : super(const WaypointState()) {
     _init();
   }
 
@@ -63,10 +64,7 @@ class WaypointNotifier extends StateNotifier<WaypointState> {
 
   Future<void> _init() async {
     final saved = await _repository.load();
-    state = state.copyWith(
-      waypoints: saved,
-      showHint: saved.isEmpty,
-    );
+    state = state.copyWith(waypoints: saved, showHint: saved.isEmpty);
     await _startLocation();
   }
 
@@ -83,8 +81,9 @@ class WaypointNotifier extends StateNotifier<WaypointState> {
         state = state.copyWith(
           userLocation: latLng,
           locationEnabled: true,
-          isRecenterRequested:
-              shouldAutoCenter ? true : state.isRecenterRequested,
+          isRecenterRequested: shouldAutoCenter
+              ? true
+              : state.isRecenterRequested,
           hasCenteredOnUser: true,
         );
       },
@@ -115,7 +114,9 @@ class WaypointNotifier extends StateNotifier<WaypointState> {
   void saveEdit(String id, String name, String notes) {
     final sanitizedName = Validators.sanitizeName(name);
     final updated = state.waypoints.map((wp) {
-      if (wp.id == id) return wp.copyWith(name: sanitizedName, notes: notes.trim());
+      if (wp.id == id) {
+        return wp.copyWith(name: sanitizedName, notes: notes.trim());
+      }
       return wp;
     }).toList();
     final updatedSelected = updated.where((wp) => wp.id == id).firstOrNull;
@@ -154,10 +155,11 @@ class WaypointNotifier extends StateNotifier<WaypointState> {
 final waypointRepositoryProvider = Provider((_) => WaypointRepository());
 final locationServiceProvider = Provider((_) => LocationService());
 
-final waypointProvider =
-    StateNotifierProvider<WaypointNotifier, WaypointState>((ref) {
-  return WaypointNotifier(
-    ref.watch(waypointRepositoryProvider),
-    ref.watch(locationServiceProvider),
-  );
-});
+final waypointProvider = StateNotifierProvider<WaypointNotifier, WaypointState>(
+  (ref) {
+    return WaypointNotifier(
+      ref.watch(waypointRepositoryProvider),
+      ref.watch(locationServiceProvider),
+    );
+  },
+);

@@ -18,27 +18,20 @@ class TeardropMarker extends StatelessWidget {
   Widget build(BuildContext context) {
     return CustomPaint(
       size: const Size(100, 75),
-      painter: _TeardropPinPainter(
-        label: label,
-        isSelected: isSelected,
-      ),
+      painter: _TeardropPinPainter(label: label, isSelected: isSelected),
     );
   }
 }
 
 class _TeardropPinPainter extends CustomPainter {
-  _TeardropPinPainter({
-    required this.label,
-    required this.isSelected,
-  });
+  _TeardropPinPainter({required this.label, required this.isSelected});
 
   final String label;
   final bool isSelected;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final pinColor =
-        isSelected ? AppColors.selectedPin : AppColors.charcoal;
+    final pinColor = isSelected ? AppColors.selectedPin : AppColors.charcoal;
 
     // Pin dimensions (matching Android's 32dp * density approach)
     const pinW = 32.0;
@@ -85,10 +78,7 @@ class _TeardropPinPainter extends CustomPainter {
       Paint()..color = Colors.white.withValues(alpha: 0.95),
     );
     // Label text
-    textPainter.paint(
-      canvas,
-      Offset(cx - textPainter.width / 2, pillPV),
-    );
+    textPainter.paint(canvas, Offset(cx - textPainter.width / 2, pillPV));
 
     // ── Teardrop pin with hole (EVEN_ODD) ───────────────────────
     final oy = pillH + pillGap;
@@ -102,9 +92,12 @@ class _TeardropPinPainter extends CustomPainter {
 
     // Left side curve
     path.cubicTo(
-      cx - headR * 0.15, tipY - pinH * 0.08,
-      cx - headR, headCy + headR * 0.5,
-      cx - headR, headCy,
+      cx - headR * 0.15,
+      tipY - pinH * 0.08,
+      cx - headR,
+      headCy + headR * 0.5,
+      cx - headR,
+      headCy,
     );
 
     // Top arc (semicircle left → right)
@@ -117,18 +110,19 @@ class _TeardropPinPainter extends CustomPainter {
 
     // Right side curve
     path.cubicTo(
-      cx + headR, headCy + headR * 0.5,
-      cx + headR * 0.15, tipY - pinH * 0.08,
-      cx, tipY,
+      cx + headR,
+      headCy + headR * 0.5,
+      cx + headR * 0.15,
+      tipY - pinH * 0.08,
+      cx,
+      tipY,
     );
     path.close();
 
     // Inner hole
     final holeCy = headCy - headR * 0.05;
     const holeR = headR * 0.38;
-    path.addOval(
-      Rect.fromCircle(center: Offset(cx, holeCy), radius: holeR),
-    );
+    path.addOval(Rect.fromCircle(center: Offset(cx, holeCy), radius: holeR));
 
     canvas.drawPath(
       path,

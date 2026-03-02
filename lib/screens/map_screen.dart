@@ -40,12 +40,12 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final state = ref.watch(waypointProvider);
 
     // Listen for recenter requests
-    ref.listen(
-      waypointProvider.select((s) => s.isRecenterRequested),
-      (prev, next) {
-        if (next) _handleRecenter(ref.read(waypointProvider));
-      },
-    );
+    ref.listen(waypointProvider.select((s) => s.isRecenterRequested), (
+      prev,
+      next,
+    ) {
+      if (next) _handleRecenter(ref.read(waypointProvider));
+    });
 
     return Scaffold(
       body: Stack(
@@ -68,8 +68,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.florian.waypoint',
               ),
               // User location blue dot
@@ -96,9 +95,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                     child: GestureDetector(
                       onTap: () {
                         HapticService.light();
-                        ref
-                            .read(waypointProvider.notifier)
-                            .selectWaypoint(wp);
+                        ref.read(waypointProvider.notifier).selectWaypoint(wp);
                       },
                       child: TeardropMarker(
                         label: wp.name,
@@ -140,13 +137,16 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                         reverseDuration: const Duration(milliseconds: 180),
                         transitionBuilder: (child, animation) {
                           return SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0, 0.5),
-                              end: Offset.zero,
-                            ).animate(CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOut,
-                            )),
+                            position:
+                                Tween<Offset>(
+                                  begin: const Offset(0, 0.5),
+                                  end: Offset.zero,
+                                ).animate(
+                                  CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeOut,
+                                  ),
+                                ),
                             child: FadeTransition(
                               opacity: animation,
                               child: child,
@@ -168,7 +168,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                   ref
                                       .read(waypointProvider.notifier)
                                       .deleteWaypoint(
-                                          state.selectedWaypoint!.id);
+                                        state.selectedWaypoint!.id,
+                                      );
                                 },
                                 onSave: (name, notes) {
                                   HapticService.success();
@@ -182,12 +183,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                                 },
                               )
                             : state.showHint
-                                ? const HintCapsule(
-                                    key: ValueKey('hint'),
-                                  )
-                                : const SizedBox.shrink(
-                                    key: ValueKey('empty'),
-                                  ),
+                            ? const HintCapsule(key: ValueKey('hint'))
+                            : const SizedBox.shrink(key: ValueKey('empty')),
                       ),
                     ],
                   ),

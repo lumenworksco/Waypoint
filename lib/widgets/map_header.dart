@@ -30,9 +30,7 @@ class MapHeader extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
             child: Semantics(
-              label: locationEnabled
-                  ? 'Location: $coordText'
-                  : 'Locating',
+              label: locationEnabled ? 'Location: $coordText' : 'Locating',
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,

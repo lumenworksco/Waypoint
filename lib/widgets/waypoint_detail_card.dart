@@ -242,10 +242,7 @@ class _WaypointDetailCardState extends State<WaypointDetailCard> {
               onPressed: _cancelEditing,
               child: const Text(
                 'Cancel',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
               ),
             ),
             const SizedBox(width: 4),

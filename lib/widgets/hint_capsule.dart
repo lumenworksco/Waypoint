@@ -20,10 +20,7 @@ class HintCapsule extends StatelessWidget {
           SizedBox(width: 6),
           Text(
             'Long-press to add',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: Colors.white, fontSize: 13),
           ),
         ],
       ),

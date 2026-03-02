@@ -32,23 +32,14 @@ abstract final class AppShadows {
   ];
 
   static List<BoxShadow> header = [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.1),
-      blurRadius: 8,
-    ),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8),
   ];
 
   static List<BoxShadow> recenterEnabled = [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.15),
-      blurRadius: 6,
-    ),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6),
   ];
 
   static List<BoxShadow> recenterDisabled = [
-    BoxShadow(
-      color: Colors.black.withValues(alpha: 0.1),
-      blurRadius: 2,
-    ),
+    BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 2),
   ];
 }
