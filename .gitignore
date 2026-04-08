@@ -1,6 +1,7 @@
-# Android
+# Android build
 .gradle/
 .kotlin/
+.cxx/
 app/build/
 build/
 local.properties
@@ -23,10 +24,10 @@ local.properties
 .DS_Store
 ._*
 
-# Gradle
-gradle/wrapper/gradle-wrapper.jar
-captures/
-out/
+# Flutter (legacy, in case any regenerate)
+.dart_tool/
+.flutter-plugins*
+pubspec.lock
 
 # Claude
 .claude/

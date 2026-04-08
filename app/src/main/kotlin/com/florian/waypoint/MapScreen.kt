@@ -13,23 +13,22 @@ import android.os.Vibrator
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,7 +55,6 @@ private val SelectedPin = Color(0xFFDC5028)
 private val DeleteRed = Color(0xFFFF3B30)
 private val TextPrimary = Color(0xFF1C1C1E)
 private val TextSecondary = Color(0xFF8E8E93)
-private val FieldBackground = Color(0xFFF2F2F7)
 
 @Composable
 fun MapScreen(store: WaypointStore) {
@@ -168,6 +166,7 @@ fun MapScreen(store: WaypointStore) {
                 MapView(ctx).apply {
                     setTileSource(TileSourceFactory.MAPNIK)
                     setMultiTouchControls(true)
+                    @Suppress("DEPRECATION")
                     setBuiltInZoomControls(false)
                     minZoomLevel = 3.0
                     maxZoomLevel = 20.0
@@ -345,7 +344,7 @@ private fun RecenterButton(enabled: Boolean, onClick: () -> Unit) {
 // ── Zoom button ─────────────────────────────────────────────────
 @Composable
 private fun ZoomButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     description: String,
     onClick: () -> Unit
 ) {
@@ -429,7 +428,7 @@ private fun WaypointCard(
 
 @Composable
 private fun CardIconButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     bgColor: Color,
     iconColor: Color,
     desc: String,

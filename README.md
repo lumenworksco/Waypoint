@@ -37,8 +37,8 @@ app/src/main/kotlin/com/florian/waypoint/
 
 ### Prerequisites
 
-- Android Studio
-- Android SDK (API 26+)
+- Android Studio (or the Android SDK)
+- JDK 17 or 21
 
 ### Build
 
@@ -46,7 +46,7 @@ app/src/main/kotlin/com/florian/waypoint/
 ./gradlew assembleDebug
 ```
 
-### Install
+### Install on a connected device
 
 ```bash
 ./gradlew installDebug
@@ -57,6 +57,8 @@ app/src/main/kotlin/com/florian/waypoint/
 Waypoint requests location permission solely to display your position on the map and calculate distances to your waypoints. Location data is processed on-device only and is never transmitted to any server. Waypoint data is stored locally on your device using SharedPreferences.
 
 The app makes network requests only to load OpenStreetMap tile images.
+
+The full privacy policy is available at [florianbraun05.github.io/Waypoint](https://florianbraun05.github.io/Waypoint/).
 
 ## License
 
