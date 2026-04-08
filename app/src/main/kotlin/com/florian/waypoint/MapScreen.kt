@@ -21,7 +21,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -166,6 +168,7 @@ fun MapScreen(store: WaypointStore) {
                 MapView(ctx).apply {
                     setTileSource(TileSourceFactory.MAPNIK)
                     setMultiTouchControls(true)
+                    setBuiltInZoomControls(false)
                     minZoomLevel = 3.0
                     maxZoomLevel = 20.0
                     controller.setZoom(15.0)
@@ -236,11 +239,23 @@ fun MapScreen(store: WaypointStore) {
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
-            // Recenter button
-            RecenterButton(enabled = locationEnabled) {
-                vibrate(context, light = true)
-                userLocation?.let { loc ->
-                    mapViewRef.value?.controller?.animateTo(loc, 18.5, 600)
+            // Zoom + recenter column
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ZoomButton(icon = Icons.Filled.Add, description = "Zoom in") {
+                    vibrate(context, light = true)
+                    mapViewRef.value?.controller?.zoomIn()
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                ZoomButton(icon = Icons.Filled.Remove, description = "Zoom out") {
+                    vibrate(context, light = true)
+                    mapViewRef.value?.controller?.zoomOut()
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                RecenterButton(enabled = locationEnabled) {
+                    vibrate(context, light = true)
+                    userLocation?.let { loc ->
+                        mapViewRef.value?.controller?.animateTo(loc, 18.5, 600)
+                    }
                 }
             }
         }
@@ -322,6 +337,31 @@ private fun RecenterButton(enabled: Boolean, onClick: () -> Unit) {
                 contentDescription = "Center on my location",
                 tint = PrimaryBlue.copy(alpha = if (enabled) 1f else 0.4f),
                 modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+// ── Zoom button ─────────────────────────────────────────────────
+@Composable
+private fun ZoomButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.size(42.dp),
+        shape = CircleShape,
+        color = Color.White,
+        shadowElevation = 3.dp,
+        onClick = onClick
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = description,
+                tint = Color(0xFF3C3C43),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -454,62 +494,79 @@ private fun EditWaypointDialog(
 // ── Drawing helpers ─────────────────────────────────────────────
 private fun createPinDrawable(context: Context, color: Color, label: String): BitmapDrawable {
     val density = context.resources.displayMetrics.density
-    val w = (48 * density).toInt()
-    val h = (56 * density).toInt()
-    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bmp)
 
-    val pinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.argb(
-            (color.alpha * 255).toInt(),
-            (color.red * 255).toInt(),
-            (color.green * 255).toInt(),
-            (color.blue * 255).toInt()
-        )
-        style = Paint.Style.FILL
-    }
+    // Pin dimensions
+    val headR = 13 * density      // head circle radius
+    val pinH = 38 * density       // total pin height (head top to tip)
+    val innerR = 5 * density      // white inner dot radius
+    val labelGap = 3 * density
 
-    // Teardrop shape
-    val cx = w / 2f
-    val headR = 10 * density
-    val tipY = h - 4 * density
-    val path = Path().apply {
-        moveTo(cx, tipY)
-        cubicTo(cx - 18 * density, tipY - 20 * density, cx - headR, cx - headR + 6 * density, cx - headR, cx - 4 * density)
-        addCircle(cx, cx - 4 * density, headR, Path.Direction.CCW)
-        moveTo(cx + headR, cx - 4 * density)
-        cubicTo(cx + headR, cx - headR + 6 * density, cx + 18 * density, tipY - 20 * density, cx, tipY)
-    }
-    canvas.drawPath(path, pinPaint)
-
-    // Inner white dot
-    val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.WHITE
-        style = Paint.Style.FILL
-    }
-    canvas.drawCircle(cx, cx - 4 * density, 4 * density, dotPaint)
-
-    // Label
+    // Measure label
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.argb(220, 28, 28, 30)
-        textSize = 9 * density
+        this.color = android.graphics.Color.argb(230, 28, 28, 30)
+        textSize = 10 * density
         textAlign = Paint.Align.CENTER
         typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
     }
-    val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.argb(240, 255, 255, 255)
-        style = Paint.Style.FILL
-    }
     val truncated = if (label.length > 12) label.take(11) + "\u2026" else label
     val textW = textPaint.measureText(truncated)
-    val pad = 4 * density
-    val labelY = 2 * density
+    val labelPadH = 6 * density
+    val labelPadV = 3 * density
+    val labelW = textW + labelPadH * 2
+    val labelH = textPaint.textSize + labelPadV * 2
+
+    // Canvas sizing
+    val totalW = maxOf(labelW, headR * 2) + 6 * density
+    val totalH = labelH + labelGap + pinH + 2 * density
+    val bmp = Bitmap.createBitmap(totalW.toInt(), totalH.toInt(), Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bmp)
+    val cx = totalW / 2f
+
+    // ── Label pill ──
+    val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = android.graphics.Color.argb(245, 255, 255, 255)
+        style = Paint.Style.FILL
+        setShadowLayer(2 * density, 0f, 0.5f * density, android.graphics.Color.argb(40, 0, 0, 0))
+    }
     canvas.drawRoundRect(
-        cx - textW / 2 - pad, labelY,
-        cx + textW / 2 + pad, labelY + textPaint.textSize + pad * 2,
-        4 * density, 4 * density, bgPaint
+        cx - labelW / 2, 0f, cx + labelW / 2, labelH,
+        6 * density, 6 * density, bgPaint
     )
-    canvas.drawText(truncated, cx, labelY + textPaint.textSize + pad - 1 * density, textPaint)
+    canvas.drawText(truncated, cx, labelPadV + textPaint.textSize - textPaint.descent(), textPaint)
+
+    // ── Pin shape: arc over the top + two lines to the tip ──
+    val pinTop = labelH + labelGap
+    val headCy = pinTop + headR                 // circle center Y
+    val tipY = pinTop + pinH                    // bottom tip
+
+    val argb = android.graphics.Color.argb(
+        (color.alpha * 255).toInt(), (color.red * 255).toInt(),
+        (color.green * 255).toInt(), (color.blue * 255).toInt()
+    )
+    // Drop shadow
+    val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = argb
+        style = Paint.Style.FILL
+        setShadowLayer(3 * density, 0f, 1.5f * density, android.graphics.Color.argb(60, 0, 0, 0))
+    }
+
+    // Classic pin: wide arc (250°) + straight lines to tip
+    // Arc starts at 145° (lower-left of circle) and sweeps 250° clockwise
+    // ending at 395° = 35° (lower-right). Lines connect those endpoints to the tip.
+    val path = Path().apply {
+        arcTo(
+            cx - headR, headCy - headR, cx + headR, headCy + headR,
+            145f, 250f, true
+        )
+        lineTo(cx, tipY)
+        close()
+    }
+    canvas.drawPath(path, shadowPaint)
+
+    // White inner dot
+    canvas.drawCircle(cx, headCy, innerR, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = android.graphics.Color.WHITE
+    })
 
     return BitmapDrawable(context.resources, bmp)
 }
