@@ -50,7 +50,7 @@ class MapHeader extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: locationEnabled
-                            ? AppColors.iosBlue
+                            ? AppColors.primaryBlue
                             : AppColors.statusDotInactive,
                       ),
                     ),

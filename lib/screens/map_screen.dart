@@ -207,7 +207,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 }
 
-/// iOS-style user location dot — solid blue with white ring and faint glow.
+/// User location dot — solid blue with white ring and faint glow. — solid blue with white ring and faint glow.
 class _UserLocationDot extends StatelessWidget {
   const _UserLocationDot();
 
@@ -219,7 +219,7 @@ class _UserLocationDot extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: AppColors.iosBlue.withValues(alpha: 0.14),
+          color: AppColors.primaryBlue.withValues(alpha: 0.14),
         ),
         child: Center(
           child: Container(
@@ -235,7 +235,7 @@ class _UserLocationDot extends StatelessWidget {
                 height: 16,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.iosBlue,
+                  color: AppColors.primaryBlue,
                 ),
               ),
             ),

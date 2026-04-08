@@ -255,7 +255,7 @@ class _WaypointDetailCardState extends State<WaypointDetailCard> {
                 ),
                 decoration: BoxDecoration(
                   color: _isSaveEnabled
-                      ? AppColors.iosBlue
+                      ? AppColors.primaryBlue
                       : AppColors.disabledButton,
                   borderRadius: BorderRadius.circular(AppRadii.field),
                 ),

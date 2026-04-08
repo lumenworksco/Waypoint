@@ -31,7 +31,7 @@ class RecenterButton extends StatelessWidget {
           ),
           child: Icon(
             Icons.my_location,
-            color: AppColors.iosBlue.withValues(alpha: enabled ? 1.0 : 0.4),
+            color: AppColors.primaryBlue.withValues(alpha: enabled ? 1.0 : 0.4),
             size: 22,
           ),
         ),

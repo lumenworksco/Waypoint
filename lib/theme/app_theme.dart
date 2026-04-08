@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const iosBlue = Color(0xFF007AFF);
+  static const primaryBlue = Color(0xFF007AFF);
   static const charcoal = Color(0xFF3C3734);
   static const selectedPin = Color(0xFFDC5028);
   static const deleteRed = Color(0xFFFF3B30);

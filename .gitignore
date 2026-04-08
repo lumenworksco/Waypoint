@@ -19,39 +19,6 @@ android/local.properties
 *.keystore
 *.jks
 
-# iOS / Xcode
-ios/Flutter/App.framework
-ios/Flutter/Flutter.framework
-ios/Flutter/Flutter.podspec
-ios/Flutter/Generated.xcconfig
-ios/Flutter/ephemeral/
-ios/Flutter/flutter_export_environment.sh
-ios/Pods/
-ios/.symlinks/
-ios/DerivedData/
-*.xcuserstate
-xcuserdata/
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-*.xccheckout
-*.moved-aside
-*.hmap
-*.ipa
-*.xcscmblueprint
-.build/
-.swiftpm/
-Package.resolved
-
-# CocoaPods
-Pods/
-Carthage/Build/
-
 # IDE
 .idea/
 *.iml

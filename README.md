@@ -1,6 +1,6 @@
 # Waypoint
 
-A cross-platform mobile app for dropping and managing geographical waypoints on OpenStreetMap. Built with Flutter and Dart, targeting both iOS and Android from a single codebase.
+An Android app for dropping and managing geographical waypoints on OpenStreetMap. Built with Flutter and Dart.
 
 ## Features
 
@@ -44,8 +44,7 @@ lib/
 ### Prerequisites
 
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.41+)
-- Xcode 15+ (for iOS builds)
-- Android Studio or Android SDK (for Android builds)
+- Android Studio or Android SDK
 
 ### Setup
 
@@ -58,9 +57,6 @@ flutter pub get
 ### Run
 
 ```bash
-# iOS Simulator
-flutter run -d ios
-
 # Android Emulator
 flutter run -d android
 
@@ -76,9 +72,6 @@ flutter build apk --release
 
 # Android App Bundle (for Play Store)
 flutter build appbundle --release
-
-# iOS (open in Xcode for archive/upload)
-flutter build ios --release
 ```
 
 ## Tech Stack
