@@ -1,17 +1,9 @@
-# Flutter / Dart
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-build/
-.pub/
-
 # Android
-android/.gradle/
-android/.kotlin/
-android/app/build/
-android/build/
-android/local.properties
+.gradle/
+.kotlin/
+app/build/
+build/
+local.properties
 *.apk
 *.aab
 *.ap_
@@ -27,28 +19,14 @@ android/local.properties
 *.swo
 *~
 
-# macOS / Windows
+# macOS
 .DS_Store
-.AppleDouble
-.LSOverride
 ._*
-Thumbs.db
 
 # Gradle
 gradle/wrapper/gradle-wrapper.jar
 captures/
 out/
-.navigation/
 
 # Claude
 .claude/
-
-# Fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/**/*.png
-fastlane/test_output
-
-# Privacy policy (separate repo)
-privacy-policy.html
-waypoint-privacy-policy/

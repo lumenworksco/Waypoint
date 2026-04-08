@@ -1,90 +1,56 @@
 # Waypoint
 
-An Android app for dropping and managing geographical waypoints on OpenStreetMap. Built with Flutter and Dart.
+An Android app for dropping and managing geographical waypoints on OpenStreetMap. Built with Kotlin and Jetpack Compose.
 
 ## Features
 
-- **Interactive Map** — Full-screen OpenStreetMap with pinch-to-zoom and pan
-- **Drop Waypoints** — Long-press anywhere on the map to place a new waypoint
-- **Edit & Manage** — Tap a waypoint to view, edit its name/notes, or delete it
-- **Live GPS Tracking** — Your position shown as a blue dot with real-time updates
-- **Distance Display** — See how far you are from any selected waypoint
-- **Auto-Center** — Map centers on your location when GPS first locks on
-- **Offline Persistence** — Waypoints saved locally and survive app restarts
-- **Haptic Feedback** — Tactile responses for add, select, and delete actions
+- **Interactive Map** -- Full-screen OpenStreetMap with pinch-to-zoom and pan
+- **Drop Waypoints** -- Long-press anywhere on the map to place a new waypoint
+- **Edit & Manage** -- Tap a waypoint to view, edit its name/notes, or delete it
+- **Live GPS Tracking** -- Your position shown as a blue dot with real-time updates
+- **Distance Display** -- See how far you are from any selected waypoint
+- **Auto-Center** -- Map centers on your location when GPS first locks on
+- **Offline Persistence** -- Waypoints saved locally and survive app restarts
+- **Haptic Feedback** -- Tactile responses for add, select, and delete actions
 
 ## Architecture
 
 ```
-lib/
-├── main.dart                    # App entry point
-├── theme/app_theme.dart         # Colors, radii, shadows
-├── models/waypoint_model.dart   # Data model + JSON serialization
-├── services/
-│   ├── waypoint_repository.dart # SharedPreferences persistence
-│   ├── location_service.dart    # GPS via Geolocator
-│   └── haptic_service.dart      # Platform haptic feedback
-├── utils/
-│   ├── distance_util.dart       # Haversine distance + formatting
-│   └── validators.dart          # Input sanitization
-├── providers/
-│   └── waypoint_provider.dart   # Riverpod state management
-├── screens/
-│   └── map_screen.dart          # Main map screen
-└── widgets/
-    ├── map_header.dart          # GPS status pill
-    ├── hint_capsule.dart        # Long-press hint
-    ├── recenter_button.dart     # Location recenter button
-    ├── custom_map_marker.dart   # Teardrop pin painter
-    └── waypoint_detail_card.dart# View/edit detail card
-```
-
-## Getting Started
-
-### Prerequisites
-
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.41+)
-- Android Studio or Android SDK
-
-### Setup
-
-```bash
-git clone https://github.com/your-username/waypoint.git
-cd waypoint
-flutter pub get
-```
-
-### Run
-
-```bash
-# Android Emulator
-flutter run -d android
-
-# Connected device
-flutter run
-```
-
-### Build for Release
-
-```bash
-# Android APK
-flutter build apk --release
-
-# Android App Bundle (for Play Store)
-flutter build appbundle --release
+app/src/main/kotlin/com/florian/waypoint/
+  MainActivity.kt      -- Entry point, edge-to-edge setup, Compose theme
+  MapScreen.kt         -- Main screen: osmdroid map + Compose overlays
+  Waypoint.kt          -- Data class with UUID, coordinates, name, notes
+  WaypointStore.kt     -- SharedPreferences + Gson persistence
 ```
 
 ## Tech Stack
 
 | Component | Technology |
 |-----------|------------|
-| Framework | Flutter 3.41 |
-| Language | Dart |
-| State Management | Riverpod |
-| Map | flutter_map + OpenStreetMap |
-| GPS | Geolocator |
-| Persistence | SharedPreferences |
-| Coordinates | latlong2 |
+| Language | Kotlin |
+| UI | Jetpack Compose (Material 3) |
+| Map | osmdroid + OpenStreetMap |
+| GPS | Google Play Services Location |
+| Persistence | SharedPreferences + Gson |
+
+## Getting Started
+
+### Prerequisites
+
+- Android Studio
+- Android SDK (API 26+)
+
+### Build
+
+```bash
+./gradlew assembleDebug
+```
+
+### Install
+
+```bash
+./gradlew installDebug
+```
 
 ## Privacy
 
