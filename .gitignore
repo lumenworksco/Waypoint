@@ -24,10 +24,5 @@ local.properties
 .DS_Store
 ._*
 
-# Flutter (legacy, in case any regenerate)
-.dart_tool/
-.flutter-plugins*
-pubspec.lock
-
 # Claude
 .claude/
