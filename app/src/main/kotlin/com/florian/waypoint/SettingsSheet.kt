@@ -6,15 +6,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.osmdroid.config.Configuration
+import java.io.File
 
 enum class DistanceUnit(val label: String) { METRIC("Metric (km)"), IMPERIAL("Imperial (mi)") }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsSheet(store: WaypointStore, onDismiss: () -> Unit) {
+    val context = LocalContext.current
     var unit by remember { mutableStateOf(
         runCatching { DistanceUnit.valueOf(store.loadSetting("distance_unit", "METRIC")) }.getOrDefault(DistanceUnit.METRIC)
     ) }
@@ -24,6 +28,7 @@ fun SettingsSheet(store: WaypointStore, onDismiss: () -> Unit) {
     var proximityRadius by remember { mutableIntStateOf(
         store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0
     ) }
+    var cacheSize by remember { mutableStateOf(calcCacheSize(context)) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
@@ -53,7 +58,7 @@ fun SettingsSheet(store: WaypointStore, onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(20.dp))
 
             // Default zoom
-            SettingLabel("Default Zoom Level: ${defaultZoom.toInt()}")
+            SettingLabel("Default Zoom: ${defaultZoom.toInt()}")
             Slider(
                 value = defaultZoom,
                 onValueChange = { defaultZoom = it; store.saveSetting("default_zoom", it.toInt().toString()) },
@@ -80,6 +85,21 @@ fun SettingsSheet(store: WaypointStore, onDismiss: () -> Unit) {
                 if (proximityRadius == 0) "No alerts" else "Vibrate when within ${proximityRadius}m of a waypoint",
                 fontSize = 13.sp, color = MaterialTheme.colorScheme.outline
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Offline tiles management
+            SettingLabel("Offline Map Tiles")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(cacheSize, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                Text("Clear cache", fontSize = 14.sp, color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.iosClickable {
+                        clearTileCache(context)
+                        cacheSize = calcCacheSize(context)
+                    }.padding(horizontal = 8.dp, vertical = 6.dp))
+            }
         }
     }
 }
@@ -88,4 +108,23 @@ fun SettingsSheet(store: WaypointStore, onDismiss: () -> Unit) {
 private fun SettingLabel(text: String) {
     Text(text, fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
     Spacer(modifier = Modifier.height(8.dp))
+}
+
+private fun calcCacheSize(context: android.content.Context): String {
+    val cacheDir = Configuration.getInstance().osmdroidTileCache ?: File(context.cacheDir, "osmdroid/tiles")
+    if (!cacheDir.exists()) return "No cached tiles"
+    val bytes = cacheDir.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+    return when {
+        bytes < 1024 -> "$bytes B"
+        bytes < 1024 * 1024 -> "${"%.1f".format(bytes / 1024.0)} KB"
+        else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
+    }
+}
+
+private fun clearTileCache(context: android.content.Context) {
+    val cacheDir = Configuration.getInstance().osmdroidTileCache ?: File(context.cacheDir, "osmdroid/tiles")
+    if (cacheDir.exists()) cacheDir.deleteRecursively()
+    // Also clear the SQL cache
+    val sqlDb = File(context.filesDir?.parentFile, "databases")
+    sqlDb.listFiles()?.filter { it.name.startsWith("tile") }?.forEach { it.delete() }
 }

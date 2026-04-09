@@ -227,7 +227,10 @@ fun MapScreen(store: WaypointStore) {
     LaunchedEffect(userLocation, trackRecorder.currentPoints.size) {
         val map = mapViewRef.value ?: return@LaunchedEffect; refreshOverlays(map)
         val loc = userLocation ?: return@LaunchedEffect
-        if (!hasCenteredOnUser) { map.controller.animateTo(loc, 18.5, 600); hasCenteredOnUser = true }
+        if (!hasCenteredOnUser) {
+            val defZoom = store.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
+            map.controller.animateTo(loc, defZoom, 600); hasCenteredOnUser = true
+        }
     }
     LaunchedEffect(waypoints, selectedWaypoint, tracks) { mapViewRef.value?.let { refreshOverlays(it) } }
     LaunchedEffect(mapStyle) { mapViewRef.value?.let { it.setTileSource(mapStyle.tileSource()); it.invalidate() } }
@@ -239,7 +242,8 @@ fun MapScreen(store: WaypointStore) {
             MapView(ctx).apply {
                 setTileSource(mapStyle.tileSource()); setMultiTouchControls(true)
                 @Suppress("DEPRECATION") setBuiltInZoomControls(false)
-                minZoomLevel = 3.0; maxZoomLevel = 20.0; controller.setZoom(15.0); controller.setCenter(GeoPoint(51.5074, -0.1278))
+                val defZoom = store.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
+                minZoomLevel = 3.0; maxZoomLevel = 20.0; controller.setZoom(defZoom); controller.setCenter(GeoPoint(51.5074, -0.1278))
                 overlays.add(0, MapEventsOverlay(object : MapEventsReceiver {
                     override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
                         if (measureMode) return false; selectedWaypoint = null; refreshOverlays(this@apply); return true
