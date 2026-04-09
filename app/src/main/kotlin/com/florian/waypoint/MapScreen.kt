@@ -42,7 +42,6 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.ScaleBarOverlay
-import org.osmdroid.views.overlay.compass.CompassOverlay
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay
 import java.io.File
 
@@ -73,7 +72,7 @@ fun MapScreen(store: WaypointStore) {
     // Delete flow
     var pendingDelete by remember { mutableStateOf<Waypoint?>(null) }
     var lastDeleted by remember { mutableStateOf<Waypoint?>(null) }
-    val snackbarHostState = remember { SnackbarHostState() }
+    var showUndoToast by remember { mutableStateOf(false) }
 
     // Measure mode
     var measureMode by remember { mutableStateOf(false) }
@@ -218,11 +217,10 @@ fun MapScreen(store: WaypointStore) {
                         waypoints = waypoints + wp; store.save(waypoints); refreshOverlays(this@apply); return true
                     }
                 }))
-                overlays.add(CompassOverlay(ctx, this).apply { enableCompass() })
                 overlays.add(ScaleBarOverlay(this).apply {
-                    setCentred(false); setAlignBottom(true); setAlignRight(false)
+                    setCentred(false); setAlignBottom(true); setAlignRight(true)
                     setTextSize(10f * resources.displayMetrics.density)
-                    setScaleBarOffset((16 * resources.displayMetrics.density).toInt(), (100 * resources.displayMetrics.density).toInt())
+                    setScaleBarOffset((16 * resources.displayMetrics.density).toInt(), (200 * resources.displayMetrics.density).toInt())
                 })
                 overlays.add(RotationGestureOverlay(this))
                 addMapListener(object : MapListener {
@@ -290,8 +288,8 @@ fun MapScreen(store: WaypointStore) {
         // ── Measure result banner ───────────────────────────────
         measureResult?.let { result ->
             Surface(modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 60.dp),
-                shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shadowElevation = 4.dp
-            ) { Text(result, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp), fontSize = 15.sp, fontWeight = FontWeight.W500) }
+                shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.primary, shadowElevation = 4.dp
+            ) { Text(result, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp), fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onPrimary) }
         }
 
         // ── Download progress ───────────────────────────────────
@@ -341,8 +339,25 @@ fun MapScreen(store: WaypointStore) {
             }
         }
 
-        // Snackbar
-        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 80.dp))
+        // Undo toast
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showUndoToast,
+            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { it },
+            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { it },
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 90.dp)
+        ) {
+            Surface(shape = RoundedCornerShape(50.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f), shadowElevation = 6.dp) {
+                Row(modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Waypoint deleted", color = MaterialTheme.colorScheme.surface, fontSize = 14.sp, fontWeight = FontWeight.W500)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Undo", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.W600,
+                        modifier = Modifier.iosClickable {
+                            lastDeleted?.let { waypoints = waypoints + it; store.save(waypoints); lastDeleted = null }
+                            showUndoToast = false
+                        }.padding(horizontal = 10.dp, vertical = 8.dp))
+                }
+            }
+        }
     }
 
     // ── Sheets & dialogs ────────────────────────────────────────
@@ -350,10 +365,8 @@ fun MapScreen(store: WaypointStore) {
         DeleteConfirmSheet(waypointName = wp.name, onConfirm = {
             wp.photoPath?.let { File(it).delete() }
             waypoints = waypoints.filter { it.id != wp.id }; store.save(waypoints); selectedWaypoint = null; lastDeleted = wp; pendingDelete = null
-            scope.launch {
-                val r = snackbarHostState.showSnackbar("Deleted", actionLabel = "Undo", duration = SnackbarDuration.Short)
-                if (r == SnackbarResult.ActionPerformed && lastDeleted != null) { waypoints = waypoints + lastDeleted!!; store.save(waypoints); lastDeleted = null }
-            }
+            showUndoToast = true
+            scope.launch { kotlinx.coroutines.delay(4000); showUndoToast = false }
         }, onDismiss = { pendingDelete = null })
     }
 

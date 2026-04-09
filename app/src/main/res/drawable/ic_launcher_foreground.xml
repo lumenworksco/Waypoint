@@ -4,22 +4,24 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Teardrop pin centered in the 108x108 adaptive icon safe zone (66x66 centered) -->
+    <!-- Minimal pin: thin outline, no fill -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.8"
+        android:fillColor="@android:color/transparent"
+        android:pathData="
+            M54,76
+            C54,76 38,58 38,47
+            C38,38.16 45.16,31 54,31
+            C62.84,31 70,38.16 70,47
+            C70,58 54,76 54,76
+            Z" />
+    <!-- Small solid dot -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="
-            M54,78
-            C54,78 36,58 36,46
-            C36,36.06 44.06,28 54,28
-            C63.94,28 72,36.06 72,46
-            C72,58 54,78 54,78
-            Z" />
-    <!-- Inner dot -->
-    <path
-        android:fillColor="#007AFF"
-        android:pathData="
-            M54,46
-            m-6,0
-            a6,6 0 1,1 12,0
-            a6,6 0 1,1 -12,0" />
+            M54,47
+            m-4,0
+            a4,4 0 1,1 8,0
+            a4,4 0 1,1 -8,0" />
 </vector>
