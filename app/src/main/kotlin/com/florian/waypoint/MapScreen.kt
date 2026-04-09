@@ -1,28 +1,16 @@
 package com.florian.waypoint
 
 import android.Manifest
-import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.Bitmap
+import android.os.Handler
 import android.os.Looper
-import android.os.VibrationEffect
-import android.os.Vibrator
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -41,33 +28,42 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
-import kotlin.math.*
+import org.osmdroid.views.overlay.Polyline
 
-// ── Colors ──────────────────────────────────────────────────────
-private val PrimaryBlue = Color(0xFF007AFF)
-private val Charcoal = Color(0xFF3C3734)
 private val SelectedPin = Color(0xFFDC5028)
-private val DeleteRed = Color(0xFFFF3B30)
-private val TextPrimary = Color(0xFF1C1C1E)
-private val TextSecondary = Color(0xFF8E8E93)
 
 @Composable
 fun MapScreen(store: WaypointStore) {
     val context = LocalContext.current
+    val isDark = isSystemInDarkTheme()
+
+    // ── Core state ──────────────────────────────────────────────
     var waypoints by remember { mutableStateOf(store.load()) }
+    var tracks by remember { mutableStateOf(store.loadTracks()) }
     var selectedWaypoint by remember { mutableStateOf<Waypoint?>(null) }
     var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
     var locationEnabled by remember { mutableStateOf(false) }
     var hasCenteredOnUser by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
-    val mapViewRef = remember { mutableStateOf<MapView?>(null) }
 
-    // ── Location setup ──────────────────────────────────────────
+    // ── UI state ────────────────────────────────────────────────
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showWaypointList by remember { mutableStateOf(false) }
+    var showStyleMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var downloadProgress by remember { mutableStateOf<Float?>(null) }
+    var mapStyle by remember { mutableStateOf(
+        runCatching { MapStyle.valueOf(store.loadMapStyle()) }.getOrDefault(MapStyle.STANDARD)
+    ) }
+
+    val mapViewRef = remember { mutableStateOf<MapView?>(null) }
+    val trackRecorder = remember { TrackRecorder() }
+
+    // ── Location ────────────────────────────────────────────────
     val locationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val locationCallback = remember {
         object : LocationCallback() {
@@ -75,6 +71,9 @@ fun MapScreen(store: WaypointStore) {
                 val loc = result.lastLocation ?: return
                 userLocation = GeoPoint(loc.latitude, loc.longitude)
                 locationEnabled = true
+                if (trackRecorder.isRecording) {
+                    trackRecorder.addPoint(loc.latitude, loc.longitude, loc.altitude)
+                }
             }
         }
     }
@@ -82,8 +81,7 @@ fun MapScreen(store: WaypointStore) {
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val granted = permissions.values.any { it }
-        if (granted) {
+        if (permissions.values.any { it }) {
             try {
                 val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000)
                     .setMinUpdateDistanceMeters(2f)
@@ -93,68 +91,125 @@ fun MapScreen(store: WaypointStore) {
         }
     }
 
+    // ── GPX SAF launchers ───────────────────────────────────────
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/gpx+xml")
+    ) { uri ->
+        uri?.let {
+            val gpx = exportGpx(waypoints, tracks)
+            context.contentResolver.openOutputStream(it)?.use { os -> os.write(gpx.toByteArray()) }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            val xml = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText() ?: return@let
+            val data = importGpx(xml)
+            if (data.waypoints.isNotEmpty()) {
+                waypoints = waypoints + data.waypoints
+                store.save(waypoints)
+            }
+            if (data.tracks.isNotEmpty()) {
+                tracks = tracks + data.tracks
+                store.saveTracks(tracks)
+            }
+        }
+    }
+
+    // ── Init ────────────────────────────────────────────────────
     LaunchedEffect(Unit) {
-        Configuration.getInstance().userAgentValue = "com.florian.waypoint"
-        permissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
+        Configuration.getInstance().apply {
+            userAgentValue = "com.florian.waypoint"
+            tileFileSystemCacheMaxBytes = 100L * 1024 * 1024
+            tileFileSystemCacheTrimBytes = 80L * 1024 * 1024
+        }
+        permissionLauncher.launch(arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ))
     }
 
     DisposableEffect(Unit) {
         onDispose { locationClient.removeLocationUpdates(locationCallback) }
     }
 
-    // ── Helper: refresh markers on the map ──────────────────────
-    fun refreshMarkers(mapView: MapView) {
-        mapView.overlays.removeAll { it is Marker }
+    // ── Refresh all overlays ────────────────────────────────────
+    fun refreshOverlays(mapView: MapView) {
+        mapView.overlays.removeAll { it is Marker || it is Polyline }
+
+        // Tracks (below markers)
+        for (track in tracks) {
+            mapView.overlays.add(Polyline(mapView).apply {
+                setPoints(track.points.map { GeoPoint(it.latitude, it.longitude) })
+                outlinePaint.color = android.graphics.Color.parseColor(track.color)
+                outlinePaint.strokeWidth = 4f * context.resources.displayMetrics.density
+                outlinePaint.isAntiAlias = true
+            })
+        }
+        // Current recording
+        if (trackRecorder.currentPoints.isNotEmpty()) {
+            mapView.overlays.add(Polyline(mapView).apply {
+                setPoints(trackRecorder.currentPoints.map { GeoPoint(it.latitude, it.longitude) })
+                outlinePaint.color = android.graphics.Color.parseColor("#FF2D55")
+                outlinePaint.strokeWidth = 5f * context.resources.displayMetrics.density
+                outlinePaint.isAntiAlias = true
+            })
+        }
+
+        // Waypoint markers
         for (wp in waypoints) {
             val isSelected = wp.id == selectedWaypoint?.id
-            val marker = Marker(mapView).apply {
+            val pinColor = if (isSelected) SelectedPin
+                else Color(android.graphics.Color.parseColor(wp.color))
+            mapView.overlays.add(Marker(mapView).apply {
                 position = GeoPoint(wp.latitude, wp.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                icon = createPinDrawable(context, if (isSelected) SelectedPin else Charcoal, wp.name)
+                icon = createPinDrawable(context, pinColor, wp.name)
                 title = wp.name
                 id = wp.id
                 setOnMarkerClickListener { m, _ ->
                     vibrate(context, light = true)
                     selectedWaypoint = waypoints.find { it.id == m.id }
-                    refreshMarkers(mapView)
+                    refreshOverlays(mapView)
                     true
                 }
-            }
-            mapView.overlays.add(marker)
+            })
         }
-        // User location dot
+
+        // User dot
         userLocation?.let { loc ->
-            val dot = Marker(mapView).apply {
+            mapView.overlays.add(Marker(mapView).apply {
                 position = loc
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 icon = createUserDotDrawable(context)
                 setOnMarkerClickListener { _, _ -> true }
-            }
-            mapView.overlays.add(dot)
+            })
         }
         mapView.invalidate()
     }
 
-    // ── Auto-center on first location fix ───────────────────────
-    LaunchedEffect(userLocation) {
-        val loc = userLocation ?: return@LaunchedEffect
+    // ── Effects ─────────────────────────────────────────────────
+    LaunchedEffect(userLocation, trackRecorder.currentPoints.size) {
         val map = mapViewRef.value ?: return@LaunchedEffect
-        refreshMarkers(map)
+        refreshOverlays(map)
+        val loc = userLocation ?: return@LaunchedEffect
         if (!hasCenteredOnUser) {
             map.controller.animateTo(loc, 18.5, 600)
             hasCenteredOnUser = true
         }
     }
 
-    // ── Refresh markers when waypoints or selection changes ─────
-    LaunchedEffect(waypoints, selectedWaypoint) {
-        val map = mapViewRef.value ?: return@LaunchedEffect
-        refreshMarkers(map)
+    LaunchedEffect(waypoints, selectedWaypoint, tracks) {
+        mapViewRef.value?.let { refreshOverlays(it) }
+    }
+
+    LaunchedEffect(mapStyle) {
+        mapViewRef.value?.let {
+            it.setTileSource(mapStyle.tileSource())
+            it.invalidate()
+        }
     }
 
     // ── UI ──────────────────────────────────────────────────────
@@ -164,7 +219,7 @@ fun MapScreen(store: WaypointStore) {
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
                 MapView(ctx).apply {
-                    setTileSource(TileSourceFactory.MAPNIK)
+                    setTileSource(mapStyle.tileSource())
                     setMultiTouchControls(true)
                     @Suppress("DEPRECATION")
                     setBuiltInZoomControls(false)
@@ -173,11 +228,10 @@ fun MapScreen(store: WaypointStore) {
                     controller.setZoom(15.0)
                     controller.setCenter(GeoPoint(51.5074, -0.1278))
 
-                    // Long-press to add waypoint
                     overlays.add(0, MapEventsOverlay(object : MapEventsReceiver {
                         override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
                             selectedWaypoint = null
-                            refreshMarkers(this@apply)
+                            refreshOverlays(this@apply)
                             return true
                         }
                         override fun longPressHelper(p: GeoPoint): Boolean {
@@ -189,7 +243,7 @@ fun MapScreen(store: WaypointStore) {
                             )
                             waypoints = waypoints + wp
                             store.save(waypoints)
-                            refreshMarkers(this@apply)
+                            refreshOverlays(this@apply)
                             return true
                         }
                     }))
@@ -199,7 +253,7 @@ fun MapScreen(store: WaypointStore) {
             }
         )
 
-        // ── Coordinate header (top-left) ────────────────────────
+        // ── Top-left: coordinate header ─────────────────────────
         CoordinateHeader(
             userLocation = userLocation,
             locationEnabled = locationEnabled,
@@ -209,6 +263,104 @@ fun MapScreen(store: WaypointStore) {
                 .align(Alignment.TopStart)
         )
 
+        // ── Top-right: style + list + overflow buttons ──────────
+        Column(
+            modifier = Modifier
+                .statusBarsPadding()
+                .padding(end = 16.dp, top = 10.dp)
+                .align(Alignment.TopEnd),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Map style
+            Box {
+                SmallButton(Icons.Filled.Layers, "Map style") { showStyleMenu = true }
+                DropdownMenu(expanded = showStyleMenu, onDismissRequest = { showStyleMenu = false }) {
+                    MapStyle.entries.forEach { style ->
+                        DropdownMenuItem(
+                            text = { Text(style.label) },
+                            onClick = {
+                                mapStyle = style
+                                store.saveMapStyle(style.name)
+                                mapViewRef.value?.let {
+                                    it.setTileSource(style.tileSource())
+                                    it.invalidate()
+                                }
+                                showStyleMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Waypoint list
+            SmallButton(Icons.AutoMirrored.Filled.List, "Waypoint list") { showWaypointList = true }
+
+            // Overflow menu (GPX + offline)
+            Box {
+                SmallButton(Icons.Filled.MoreVert, "More") { showOverflowMenu = true }
+                DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Export GPX") },
+                        onClick = {
+                            showOverflowMenu = false
+                            exportLauncher.launch("waypoints.gpx")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Import GPX") },
+                        onClick = {
+                            showOverflowMenu = false
+                            importLauncher.launch(arrayOf("*/*"))
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Download area") },
+                        onClick = {
+                            showOverflowMenu = false
+                            val map = mapViewRef.value ?: return@DropdownMenuItem
+                            downloadProgress = 0f
+                            val cm = CacheManager(map)
+                            val zoom = map.zoomLevelDouble.toInt()
+                            val handler = Handler(Looper.getMainLooper())
+                            Thread {
+                                try {
+                                    cm.downloadAreaAsync(context, map.boundingBox, zoom, minOf(zoom + 2, 19),
+                                        object : CacheManager.CacheManagerCallback {
+                                            override fun onTaskComplete() {
+                                                handler.post { downloadProgress = null }
+                                            }
+                                            override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) {
+                                                handler.post { downloadProgress = progress / 100f }
+                                            }
+                                            override fun downloadStarted() {}
+                                            override fun setPossibleTilesInArea(total: Int) {}
+                                            override fun onTaskFailed(errors: Int) {
+                                                handler.post { downloadProgress = null }
+                                            }
+                                        }
+                                    )
+                                } catch (_: Exception) {
+                                    handler.post { downloadProgress = null }
+                                }
+                            }.start()
+                        }
+                    )
+                }
+            }
+        }
+
+        // ── Download progress bar ───────────────────────────────
+        downloadProgress?.let { progress ->
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 32.dp)
+                    .align(Alignment.Center),
+            )
+        }
+
         // ── Bottom row ──────────────────────────────────────────
         Row(
             modifier = Modifier
@@ -217,7 +369,7 @@ fun MapScreen(store: WaypointStore) {
                 .padding(16.dp),
             verticalAlignment = Alignment.Bottom
         ) {
-            // Waypoint card or hint
+            // Card / hint
             Box(modifier = Modifier.weight(1f)) {
                 val sel = selectedWaypoint
                 if (sel != null) {
@@ -238,8 +390,23 @@ fun MapScreen(store: WaypointStore) {
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
-            // Zoom + recenter column
+
+            // Right column: record + zoom + recenter
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Record button
+                RecordButton(isRecording = trackRecorder.isRecording) {
+                    vibrate(context)
+                    if (trackRecorder.isRecording) {
+                        val track = trackRecorder.stop()
+                        if (track.points.size >= 2) {
+                            tracks = tracks + track
+                            store.saveTracks(tracks)
+                        }
+                    } else {
+                        trackRecorder.start()
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
                 ZoomButton(icon = Icons.Filled.Add, description = "Zoom in") {
                     vibrate(context, light = true)
                     mapViewRef.value?.controller?.zoomIn()
@@ -260,16 +427,16 @@ fun MapScreen(store: WaypointStore) {
         }
     }
 
-    // ── Edit dialog ─────────────────────────────────────────────
+    // ── Dialogs / sheets ────────────────────────────────────────
     if (showEditDialog) {
         selectedWaypoint?.let { wp ->
             EditWaypointDialog(
                 waypoint = wp,
                 onDismiss = { showEditDialog = false },
-                onSave = { name, notes ->
+                onSave = { name, notes, color ->
                     val sanitized = name.trim().take(64).ifBlank { "Unnamed Waypoint" }
                     waypoints = waypoints.map {
-                        if (it.id == wp.id) it.copy(name = sanitized, notes = notes.trim()) else it
+                        if (it.id == wp.id) it.copy(name = sanitized, notes = notes.trim(), color = color) else it
                     }
                     store.save(waypoints)
                     selectedWaypoint = waypoints.find { it.id == wp.id }
@@ -279,54 +446,73 @@ fun MapScreen(store: WaypointStore) {
             )
         }
     }
+
+    if (showWaypointList) {
+        WaypointListSheet(
+            waypoints = waypoints,
+            tracks = tracks,
+            userLocation = userLocation,
+            onSelectWaypoint = { wp ->
+                selectedWaypoint = wp
+                mapViewRef.value?.controller?.animateTo(GeoPoint(wp.latitude, wp.longitude), 18.0, 800)
+                showWaypointList = false
+            },
+            onSelectTrack = { track ->
+                if (track.points.isNotEmpty()) {
+                    val center = GeoPoint(
+                        track.points.sumOf { it.latitude } / track.points.size,
+                        track.points.sumOf { it.longitude } / track.points.size
+                    )
+                    mapViewRef.value?.controller?.animateTo(center, 15.0, 800)
+                }
+                showWaypointList = false
+            },
+            onDeleteTrack = { track ->
+                tracks = tracks.filter { it.id != track.id }
+                store.saveTracks(tracks)
+            },
+            onDismiss = { showWaypointList = false }
+        )
+    }
 }
 
-// ── Coordinate header ───────────────────────────────────────────
+// ── Small map buttons ───────────────────────────────────────────
 @Composable
-private fun CoordinateHeader(
-    userLocation: GeoPoint?,
-    locationEnabled: Boolean,
-    modifier: Modifier = Modifier
-) {
+private fun SmallButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White.copy(alpha = 0.92f),
-        shadowElevation = 4.dp
+        modifier = Modifier.size(40.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+        shadowElevation = 3.dp,
+        onClick = onClick
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .background(
-                        if (locationEnabled) PrimaryBlue else Color(0xFFAEAEB2),
-                        CircleShape
-                    )
-            )
-            Spacer(modifier = Modifier.width(7.dp))
-            Text(
-                text = if (userLocation != null)
-                    "%.4f,  %.4f".format(userLocation.latitude, userLocation.longitude)
-                else "Locating\u2026",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.W500,
-                color = if (locationEnabled) TextPrimary else TextSecondary,
-                letterSpacing = 0.2.sp
-            )
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
     }
 }
 
-// ── Recenter button ─────────────────────────────────────────────
+@Composable
+private fun ZoomButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.size(42.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 3.dp,
+        onClick = onClick
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = description, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
 @Composable
 private fun RecenterButton(enabled: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.size(50.dp),
         shape = CircleShape,
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = if (enabled) 4.dp else 1.dp,
         onClick = { if (enabled) onClick() }
     ) {
@@ -334,287 +520,28 @@ private fun RecenterButton(enabled: Boolean, onClick: () -> Unit) {
             Icon(
                 imageVector = Icons.Filled.MyLocation,
                 contentDescription = "Center on my location",
-                tint = PrimaryBlue.copy(alpha = if (enabled) 1f else 0.4f),
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.4f),
                 modifier = Modifier.size(22.dp)
             )
         }
     }
 }
 
-// ── Zoom button ─────────────────────────────────────────────────
 @Composable
-private fun ZoomButton(
-    icon: ImageVector,
-    description: String,
-    onClick: () -> Unit
-) {
+private fun RecordButton(isRecording: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.size(42.dp),
+        modifier = Modifier.size(44.dp),
         shape = CircleShape,
-        color = Color.White,
-        shadowElevation = 3.dp,
+        color = if (isRecording) Color(0xFFFF2D55) else MaterialTheme.colorScheme.surface,
+        shadowElevation = 4.dp,
         onClick = onClick
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = description,
-                tint = Color(0xFF3C3C43),
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-// ── Hint capsule ────────────────────────────────────────────────
-@Composable
-private fun HintCapsule() {
-    Surface(
-        shape = RoundedCornerShape(50.dp),
-        color = Color.Black.copy(alpha = 0.65f)
-    ) {
-        Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-            Text("Long-press to add", color = Color.White, fontSize = 13.sp)
-        }
-    }
-}
-
-// ── Waypoint detail card ────────────────────────────────────────
-@Composable
-private fun WaypointCard(
-    waypoint: Waypoint,
-    distance: String?,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onClose: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.97f),
-        shadowElevation = 4.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    waypoint.name,
-                    fontWeight = FontWeight.W600,
-                    fontSize = 15.sp,
-                    color = TextPrimary
-                )
-                if (waypoint.notes.isNotBlank()) {
-                    Text(
-                        waypoint.notes,
-                        fontSize = 12.sp,
-                        color = TextSecondary,
-                        maxLines = 1
-                    )
-                }
-                if (distance != null) {
-                    Text(distance, fontSize = 12.sp, color = TextSecondary)
-                }
+            if (isRecording) {
+                Icon(Icons.Filled.Stop, "Stop recording", tint = Color.White, modifier = Modifier.size(22.dp))
+            } else {
+                Icon(Icons.Filled.FiberManualRecord, "Record track", tint = Color(0xFFFF2D55), modifier = Modifier.size(18.dp))
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            CardIconButton(Icons.Filled.Edit, Color(0xFFEFEFF4), Color(0xFF3C3C43), "Edit", onEdit)
-            Spacer(modifier = Modifier.width(6.dp))
-            CardIconButton(Icons.Filled.Delete, DeleteRed, Color.White, "Delete", onDelete)
-            Spacer(modifier = Modifier.width(6.dp))
-            CardIconButton(Icons.Filled.Close, Color(0xFFEFEFF4), Color(0xFF3C3C43), "Close", onClose)
         }
     }
-}
-
-@Composable
-private fun CardIconButton(
-    icon: ImageVector,
-    bgColor: Color,
-    iconColor: Color,
-    desc: String,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier.size(32.dp),
-        shape = CircleShape,
-        color = bgColor,
-        onClick = onClick
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = desc, tint = iconColor, modifier = Modifier.size(15.dp))
-        }
-    }
-}
-
-// ── Edit dialog ─────────────────────────────────────────────────
-@Composable
-private fun EditWaypointDialog(
-    waypoint: Waypoint,
-    onDismiss: () -> Unit,
-    onSave: (String, String) -> Unit
-) {
-    var name by remember { mutableStateOf(waypoint.name) }
-    var notes by remember { mutableStateOf(waypoint.notes) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Waypoint") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { notes = it },
-                    label = { Text("Notes") },
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSave(name, notes) },
-                enabled = name.isNotBlank()
-            ) { Text("Save") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
-}
-
-// ── Drawing helpers ─────────────────────────────────────────────
-private fun createPinDrawable(context: Context, color: Color, label: String): BitmapDrawable {
-    val density = context.resources.displayMetrics.density
-
-    // Pin dimensions
-    val headR = 13 * density      // head circle radius
-    val pinH = 38 * density       // total pin height (head top to tip)
-    val innerR = 5 * density      // white inner dot radius
-    val labelGap = 3 * density
-
-    // Measure label
-    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.argb(230, 28, 28, 30)
-        textSize = 10 * density
-        textAlign = Paint.Align.CENTER
-        typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
-    }
-    val truncated = if (label.length > 12) label.take(11) + "\u2026" else label
-    val textW = textPaint.measureText(truncated)
-    val labelPadH = 6 * density
-    val labelPadV = 3 * density
-    val labelW = textW + labelPadH * 2
-    val labelH = textPaint.textSize + labelPadV * 2
-
-    // Canvas sizing
-    val totalW = maxOf(labelW, headR * 2) + 6 * density
-    val totalH = labelH + labelGap + pinH + 2 * density
-    val bmp = Bitmap.createBitmap(totalW.toInt(), totalH.toInt(), Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bmp)
-    val cx = totalW / 2f
-
-    // ── Label pill ──
-    val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.argb(245, 255, 255, 255)
-        style = Paint.Style.FILL
-        setShadowLayer(2 * density, 0f, 0.5f * density, android.graphics.Color.argb(40, 0, 0, 0))
-    }
-    canvas.drawRoundRect(
-        cx - labelW / 2, 0f, cx + labelW / 2, labelH,
-        6 * density, 6 * density, bgPaint
-    )
-    canvas.drawText(truncated, cx, labelPadV + textPaint.textSize - textPaint.descent(), textPaint)
-
-    // ── Pin shape: arc over the top + two lines to the tip ──
-    val pinTop = labelH + labelGap
-    val headCy = pinTop + headR                 // circle center Y
-    val tipY = pinTop + pinH                    // bottom tip
-
-    val argb = android.graphics.Color.argb(
-        (color.alpha * 255).toInt(), (color.red * 255).toInt(),
-        (color.green * 255).toInt(), (color.blue * 255).toInt()
-    )
-    // Drop shadow
-    val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = argb
-        style = Paint.Style.FILL
-        setShadowLayer(3 * density, 0f, 1.5f * density, android.graphics.Color.argb(60, 0, 0, 0))
-    }
-
-    // Classic pin: wide arc (250°) + straight lines to tip
-    // Arc starts at 145° (lower-left of circle) and sweeps 250° clockwise
-    // ending at 395° = 35° (lower-right). Lines connect those endpoints to the tip.
-    val path = Path().apply {
-        arcTo(
-            cx - headR, headCy - headR, cx + headR, headCy + headR,
-            145f, 250f, true
-        )
-        lineTo(cx, tipY)
-        close()
-    }
-    canvas.drawPath(path, shadowPaint)
-
-    // White inner dot
-    canvas.drawCircle(cx, headCy, innerR, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.WHITE
-    })
-
-    return BitmapDrawable(context.resources, bmp)
-}
-
-private fun createUserDotDrawable(context: Context): BitmapDrawable {
-    val density = context.resources.displayMetrics.density
-    val size = (36 * density).toInt()
-    val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bmp)
-    val cx = size / 2f
-
-    // Outer glow
-    canvas.drawCircle(cx, cx, 18 * density, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.argb(36, 0, 122, 255)
-    })
-    // White ring
-    canvas.drawCircle(cx, cx, 11 * density, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.WHITE
-    })
-    // Blue center
-    canvas.drawCircle(cx, cx, 8 * density, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = android.graphics.Color.argb(255, 0, 122, 255)
-    })
-
-    return BitmapDrawable(context.resources, bmp)
-}
-
-// ── Distance ────────────────────────────────────────────────────
-private fun distanceMeters(a: GeoPoint, b: GeoPoint): Double {
-    val r = 6371000.0
-    val dLat = Math.toRadians(b.latitude - a.latitude)
-    val dLon = Math.toRadians(b.longitude - a.longitude)
-    val lat1 = Math.toRadians(a.latitude)
-    val lat2 = Math.toRadians(b.latitude)
-    val h = sin(dLat / 2).pow(2) + cos(lat1) * cos(lat2) * sin(dLon / 2).pow(2)
-    return 2 * r * asin(sqrt(h))
-}
-
-private fun formatDistance(meters: Double): String =
-    if (meters < 1000) "${meters.toInt()} m away"
-    else "%.1f km away".format(meters / 1000)
-
-// ── Haptic ──────────────────────────────────────────────────────
-private fun vibrate(context: Context, light: Boolean = false) {
-    @Suppress("DEPRECATION")
-    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
-    val effect = if (light)
-        VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE)
-    else
-        VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE)
-    vibrator.vibrate(effect)
 }

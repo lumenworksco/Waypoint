@@ -1,6 +1,9 @@
 # Gson
 -keepattributes Signature
 -keep class com.florian.waypoint.Waypoint { *; }
+-keep class com.florian.waypoint.Track { *; }
+-keep class com.florian.waypoint.TrackPoint { *; }
+-keep class com.florian.waypoint.GpxData { *; }
 
 # osmdroid
 -keep class org.osmdroid.** { *; }
