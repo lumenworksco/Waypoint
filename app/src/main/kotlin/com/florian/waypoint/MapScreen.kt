@@ -238,12 +238,22 @@ fun MapScreen(store: WaypointStore) {
             }
         })
 
-        // ── Top-left: coordinate header ─────────────────────────
-        CoordinateHeader(
-            userLocation = userLocation, locationEnabled = locationEnabled, coordFormat = coordFormat,
-            onToggleFormat = { coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]; store.saveCoordFormat(coordFormat.name) },
-            modifier = Modifier.statusBarsPadding().padding(start = 16.dp, top = 12.dp).align(Alignment.TopStart)
-        )
+        // ── Top-left: compass + coordinate header ─────────────────
+        Row(
+            modifier = Modifier.statusBarsPadding().padding(start = 12.dp, top = 12.dp).align(Alignment.TopStart),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ComposeCompass(rotation = mapRotation, onClick = {
+                vibrate(context, light = true)
+                mapViewRef.value?.apply { mapOrientation = 0f; invalidate() }
+                mapRotation = 0f
+            })
+            CoordinateHeader(
+                userLocation = userLocation, locationEnabled = locationEnabled, coordFormat = coordFormat,
+                onToggleFormat = { coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]; store.saveCoordFormat(coordFormat.name) },
+            )
+        }
 
         // ── Top-right: 3 buttons ────────────────────────────────
         Column(
@@ -276,9 +286,6 @@ fun MapScreen(store: WaypointStore) {
                         if (measureMode) { mapViewRef.value?.let { mv -> val ov = MeasureOverlay { measureResult = it }; ov.activate(); measureOverlayRef.value = ov; mv.overlays.add(ov); mv.invalidate() } }
                         else { measureOverlayRef.value?.let { mapViewRef.value?.overlays?.remove(it); mapViewRef.value?.invalidate() }; measureOverlayRef.value = null; measureResult = null }
                     })
-                    DropdownMenuItem(text = { Text("Reset north", fontSize = 15.sp) }, onClick = {
-                        showOverflowMenu = false; vibrate(context, light = true); mapViewRef.value?.apply { mapOrientation = 0f; invalidate() }
-                    })
                     DropdownMenuItem(text = { Text("Download area", fontSize = 15.sp) }, onClick = {
                         showOverflowMenu = false; val map = mapViewRef.value ?: return@DropdownMenuItem
                         val ts = map.tileProvider.tileSource; if (ts !is OnlineTileSourceBase) return@DropdownMenuItem
@@ -299,25 +306,12 @@ fun MapScreen(store: WaypointStore) {
             ) { Text(result, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp), fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onPrimary) }
         }
 
-        // ── Bottom-left: compass + scale bar (hidden when card open) ──
+        // ── Bottom-left: scale bar (hidden when card open) ──
         if (selectedWaypoint == null) {
-            Column(
-                modifier = Modifier.align(Alignment.BottomStart).navigationBarsPadding().padding(start = 16.dp, bottom = 100.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // Compass — only shows when map is rotated
-                val rotation = mapRotation
-                if (rotation != 0f) {
-                    ComposeCompass(rotation = rotation, onClick = {
-                        vibrate(context, light = true)
-                        mapViewRef.value?.apply { mapOrientation = 0f; invalidate() }
-                        mapRotation = 0f
-                    })
-                }
-                // Scale bar
-                ComposeScaleBar(metersPerPx = metersPerPx)
-            }
+            ComposeScaleBar(
+                metersPerPx = metersPerPx,
+                modifier = Modifier.align(Alignment.BottomStart).navigationBarsPadding().padding(start = 16.dp, bottom = 24.dp)
+            )
         }
 
         // ── Download progress ───────────────────────────────────
@@ -498,28 +492,30 @@ private fun ComposeCompass(rotation: Float, onClick: () -> Unit) {
 
 // ── Compose scale bar (minimal iOS style) ───────────────────────
 @Composable
-private fun ComposeScaleBar(metersPerPx: Float) {
-    // Pick a nice round distance that fits in ~80px
+private fun ComposeScaleBar(metersPerPx: Float, modifier: Modifier = Modifier) {
     val targetPx = 80f
     val rawMeters = metersPerPx * targetPx
     val niceMeters = niceRound(rawMeters)
     val barWidth = (niceMeters / metersPerPx).coerceIn(30f, 150f)
     val label = if (niceMeters >= 1000) "${"%.0f".format(niceMeters / 1000)} km" else "${"%.0f".format(niceMeters)} m"
-    val color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
 
-    Column(horizontalAlignment = Alignment.Start) {
-        Text(label, fontSize = 10.sp, fontWeight = FontWeight.W500, color = color)
-        Spacer(modifier = Modifier.height(2.dp))
-        Canvas(modifier = Modifier.width(barWidth.dp).height(4.dp)) {
-            val h = size.height; val w = size.width
-            val stroke = 1.5.dp.toPx()
-            val c = color.hashCode().toLong().let { android.graphics.Color.argb(178, 28, 28, 30) }
-            val paint = android.graphics.Paint().apply { this.color = c; strokeWidth = stroke; isAntiAlias = true }
-            // Horizontal bar
-            drawLine(color, Offset(0f, h / 2), Offset(w, h / 2), strokeWidth = stroke)
-            // End caps
-            drawLine(color, Offset(0f, 0f), Offset(0f, h), strokeWidth = stroke)
-            drawLine(color, Offset(w, 0f), Offset(w, h), strokeWidth = stroke)
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = Color.Black.copy(alpha = 0.5f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Canvas(modifier = Modifier.width(barWidth.dp).height(6.dp)) {
+                val h = size.height; val w = size.width; val stroke = 1.5.dp.toPx()
+                drawLine(Color.White, Offset(0f, h / 2), Offset(w, h / 2), strokeWidth = stroke)
+                drawLine(Color.White, Offset(0f, 0f), Offset(0f, h), strokeWidth = stroke)
+                drawLine(Color.White, Offset(w, 0f), Offset(w, h), strokeWidth = stroke)
+            }
+            Text(label, fontSize = 10.sp, fontWeight = FontWeight.W600, color = Color.White)
         }
     }
 }
