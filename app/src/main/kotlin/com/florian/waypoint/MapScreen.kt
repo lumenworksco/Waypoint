@@ -165,7 +165,9 @@ fun MapScreen(store: WaypointStore) {
     // ── Init ────────────────────────────────────────────────────
     LaunchedEffect(Unit) {
         Configuration.getInstance().apply { userAgentValue = "com.florian.waypoint"; tileFileSystemCacheMaxBytes = 100L * 1024 * 1024; tileFileSystemCacheTrimBytes = 80L * 1024 * 1024 }
-        permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+        val perms = mutableListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        if (android.os.Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
+        permissionLauncher.launch(perms.toTypedArray())
     }
     DisposableEffect(Unit) { onDispose { locationClient.removeLocationUpdates(locationCallback) } }
 
@@ -325,9 +327,21 @@ fun MapScreen(store: WaypointStore) {
                         val ts = map.tileProvider.tileSource; if (ts !is OnlineTileSourceBase) return@DropdownMenuItem
                         val bb = map.boundingBox; val zoom = map.zoomLevelDouble.toInt(); val maxZ = minOf(zoom + 2, 19)
                         downloadProgress = 0.01f; val handler = Handler(Looper.getMainLooper())
-                        Thread { try { val cm = CacheManager(map); val tiles = CacheManager.getTilesCoverage(bb, zoom, maxZ); val total = tiles.size.coerceAtLeast(1); var done = 0
-                            for (tile in tiles) { cm.loadTile(ts, tile); done++; if (done % 5 == 0 || done == total) handler.post { downloadProgress = done.toFloat() / total } }
-                        } catch (_: Exception) { }; handler.post { downloadProgress = null } }.start()
+                        val startTime = System.currentTimeMillis()
+                        Thread {
+                            try {
+                                val cm = CacheManager(map); val tiles = CacheManager.getTilesCoverage(bb, zoom, maxZ)
+                                val total = tiles.size.coerceAtLeast(1); var done = 0
+                                for (tile in tiles) {
+                                    cm.loadTile(ts, tile); done++
+                                    if (done % 3 == 0 || done == total) handler.post { downloadProgress = done.toFloat() / total }
+                                }
+                            } catch (_: Exception) { }
+                            // Keep visible for at least 1.5s so user sees it
+                            val elapsed = System.currentTimeMillis() - startTime
+                            if (elapsed < 1500) Thread.sleep(1500 - elapsed)
+                            handler.post { downloadProgress = null }
+                        }.start()
                     })
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 12.dp))
                     DropdownMenuItem(text = { Text("Import from link", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; showImportLink = true })
@@ -347,6 +361,7 @@ fun MapScreen(store: WaypointStore) {
         if (selectedWaypoint == null) {
             ComposeScaleBar(
                 metersPerPx = metersPerPx,
+                imperial = useImperial,
                 modifier = Modifier.align(Alignment.BottomStart).navigationBarsPadding().padding(start = 16.dp, bottom = 24.dp)
             )
         }
@@ -610,12 +625,22 @@ private fun ComposeCompass(rotation: Float, onClick: () -> Unit) {
 
 // ── Compose scale bar (minimal iOS style) ───────────────────────
 @Composable
-private fun ComposeScaleBar(metersPerPx: Float, modifier: Modifier = Modifier) {
+private fun ComposeScaleBar(metersPerPx: Float, imperial: Boolean = false, modifier: Modifier = Modifier) {
     val targetPx = 80f
     val rawMeters = metersPerPx * targetPx
-    val niceMeters = niceRound(rawMeters)
-    val barWidth = (niceMeters / metersPerPx).coerceIn(30f, 150f)
-    val label = if (niceMeters >= 1000) "${"%.0f".format(niceMeters / 1000)} km" else "${"%.0f".format(niceMeters)} m"
+
+    val label: String
+    val barWidth: Float
+    if (imperial) {
+        val rawFeet = rawMeters * 3.28084f
+        val niceFeet = niceRoundImperial(rawFeet)
+        barWidth = (niceFeet / 3.28084f / metersPerPx).coerceIn(30f, 150f)
+        label = if (niceFeet >= 5280) "${"%.1f".format(niceFeet / 5280f)} mi" else "${niceFeet.toInt()} ft"
+    } else {
+        val niceMeters = niceRound(rawMeters)
+        barWidth = (niceMeters / metersPerPx).coerceIn(30f, 150f)
+        label = if (niceMeters >= 1000) "${"%.0f".format(niceMeters / 1000)} km" else "${"%.0f".format(niceMeters)} m"
+    }
 
     Surface(
         modifier = modifier,
@@ -636,6 +661,15 @@ private fun ComposeScaleBar(metersPerPx: Float, modifier: Modifier = Modifier) {
             Text(label, fontSize = 10.sp, fontWeight = FontWeight.W600, color = Color.White)
         }
     }
+}
+
+private fun niceRoundImperial(feet: Float): Float = when {
+    feet >= 26400 -> ((feet / 5280).toInt() * 5280).toFloat()
+    feet >= 5280 -> ((feet / 2640).toInt() * 2640).toFloat()
+    feet >= 1000 -> ((feet / 500).toInt() * 500).toFloat()
+    feet >= 200 -> ((feet / 100).toInt() * 100).toFloat()
+    feet >= 50 -> ((feet / 50).toInt() * 50).toFloat()
+    else -> ((feet / 10).toInt() * 10).toFloat().coerceAtLeast(10f)
 }
 
 private fun niceRound(meters: Float): Float = when {
