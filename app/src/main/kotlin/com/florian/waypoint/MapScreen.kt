@@ -263,7 +263,11 @@ fun MapScreen(store: WaypointStore) {
         ) {
             Box {
                 MapButton(Icons.Filled.Layers, "Map style") { showStyleMenu = true }
-                DropdownMenu(expanded = showStyleMenu, onDismissRequest = { showStyleMenu = false }) {
+                DropdownMenu(expanded = showStyleMenu, onDismissRequest = { showStyleMenu = false },
+                    shape = RoundedCornerShape(14.dp),
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    shadowElevation = 8.dp
+                ) {
                     MapStyle.entries.forEach { style ->
                         DropdownMenuItem(text = { Text(style.label, fontSize = 15.sp) }, onClick = {
                             mapStyle = style; store.saveMapStyle(style.name); mapViewRef.value?.let { it.setTileSource(style.tileSource()); it.invalidate() }; showStyleMenu = false
@@ -274,13 +278,17 @@ fun MapScreen(store: WaypointStore) {
             MapButton(Icons.AutoMirrored.Filled.List, "Waypoints") { showWaypointList = true }
             Box {
                 MapButton(Icons.Filled.MoreVert, "More") { showOverflowMenu = true }
-                DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
+                DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false },
+                    shape = RoundedCornerShape(14.dp),
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    shadowElevation = 8.dp
+                ) {
                     DropdownMenuItem(text = { Text("Export GPX", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; exportGpxLauncher.launch("waypoints.gpx") })
                     DropdownMenuItem(text = { Text("Import GPX", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; importGpxLauncher.launch(arrayOf("*/*")) })
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 12.dp))
                     DropdownMenuItem(text = { Text("Backup all data", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; backupExportLauncher.launch("waypoint-backup.zip") })
                     DropdownMenuItem(text = { Text("Restore backup", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; backupImportLauncher.launch(arrayOf("*/*")) })
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 12.dp))
                     DropdownMenuItem(text = { Text(if (measureMode) "Stop measuring" else "Measure distance", fontSize = 15.sp) }, onClick = {
                         showOverflowMenu = false; measureMode = !measureMode
                         if (measureMode) { mapViewRef.value?.let { mv -> val ov = MeasureOverlay { measureResult = it }; ov.activate(); measureOverlayRef.value = ov; mv.overlays.add(ov); mv.invalidate() } }
@@ -319,16 +327,23 @@ fun MapScreen(store: WaypointStore) {
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).align(Alignment.Center))
         }
 
+        // ── Hint capsule (centered at bottom) ───────────────────
+        if (waypoints.isEmpty() && selectedWaypoint == null) {
+            Box(modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 80.dp)) {
+                HintCapsule()
+            }
+        }
+
         // ── Bottom row ──────────────────────────────────────────
         Row(modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp), verticalAlignment = Alignment.Bottom) {
-            // Card / hint
+            // Card
             Box(modifier = Modifier.weight(1f)) {
                 val sel = selectedWaypoint
                 if (sel != null) {
                     WaypointCard(waypoint = sel,
                         distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(sel.latitude, sel.longitude))) },
                         onEdit = { showEditSheet = true }, onDelete = { pendingDelete = sel }, onClose = { selectedWaypoint = null })
-                } else if (waypoints.isEmpty()) HintCapsule()
+                }
             }
             Spacer(modifier = Modifier.width(12.dp))
 
