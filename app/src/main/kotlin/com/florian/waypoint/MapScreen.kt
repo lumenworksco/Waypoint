@@ -42,6 +42,7 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.ScaleBarOverlay
+import org.osmdroid.views.overlay.compass.CompassOverlay
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay
 import java.io.File
 
@@ -83,6 +84,8 @@ fun MapScreen(store: WaypointStore) {
     var selectedTrack by remember { mutableStateOf<Track?>(null) }
 
     val mapViewRef = remember { mutableStateOf<MapView?>(null) }
+    val scaleBarRef = remember { mutableStateOf<ScaleBarOverlay?>(null) }
+    val compassRef = remember { mutableStateOf<CompassOverlay?>(null) }
     val trackRecorder = remember { TrackRecorder() }
 
     // ── Location ────────────────────────────────────────────────
@@ -199,6 +202,13 @@ fun MapScreen(store: WaypointStore) {
     }
     LaunchedEffect(waypoints, selectedWaypoint, tracks) { mapViewRef.value?.let { refreshOverlays(it) } }
     LaunchedEffect(mapStyle) { mapViewRef.value?.let { it.setTileSource(mapStyle.tileSource()); it.invalidate() } }
+    // Hide scale bar & compass when a waypoint card is showing
+    LaunchedEffect(selectedWaypoint) {
+        val hidden = selectedWaypoint != null
+        scaleBarRef.value?.isEnabled = !hidden
+        compassRef.value?.isEnabled = !hidden
+        mapViewRef.value?.invalidate()
+    }
 
     // ── UI ──────────────────────────────────────────────────────
     Box(modifier = Modifier.fillMaxSize()) {
@@ -217,11 +227,17 @@ fun MapScreen(store: WaypointStore) {
                         waypoints = waypoints + wp; store.save(waypoints); refreshOverlays(this@apply); return true
                     }
                 }))
-                overlays.add(ScaleBarOverlay(this).apply {
-                    setCentred(false); setAlignBottom(true); setAlignRight(true)
+                val sb = ScaleBarOverlay(this).apply {
+                    setCentred(false); setAlignBottom(true); setAlignRight(false)
                     setTextSize(10f * resources.displayMetrics.density)
-                    setScaleBarOffset((16 * resources.displayMetrics.density).toInt(), (200 * resources.displayMetrics.density).toInt())
-                })
+                    setScaleBarOffset((16 * resources.displayMetrics.density).toInt(), (100 * resources.displayMetrics.density).toInt())
+                }
+                overlays.add(sb); scaleBarRef.value = sb
+                val co = CompassOverlay(ctx, this).apply {
+                    enableCompass()
+                    setCompassCenter(36f, resources.displayMetrics.heightPixels / resources.displayMetrics.density - 180f)
+                }
+                overlays.add(co); compassRef.value = co
                 overlays.add(RotationGestureOverlay(this))
                 addMapListener(object : MapListener {
                     override fun onScroll(event: ScrollEvent?) = false
