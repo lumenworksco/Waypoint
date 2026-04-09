@@ -9,7 +9,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -37,6 +36,34 @@ import java.io.File
 
 val PresetColors = listOf("#3C3734", "#007AFF", "#34C759", "#FF9500", "#AF52DE", "#FF2D55")
 
+// ── iOS-style text field ────────────────────────────────────────
+@Composable
+fun IosTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    singleLine: Boolean = true,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = MaterialTheme.colorScheme.outline, fontSize = 15.sp) },
+        singleLine = singleLine,
+        maxLines = maxLines,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+        ),
+        textStyle = LocalTextStyle.current.copy(fontSize = 15.sp)
+    )
+}
+
 // ── Coordinate header ───────────────────────────────────────────
 @Composable
 fun CoordinateHeader(
@@ -49,12 +76,13 @@ fun CoordinateHeader(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-        shadowElevation = 4.dp,
-        onClick = onToggleFormat
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        shadowElevation = 4.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            modifier = Modifier
+                .iosClickable(onToggleFormat)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -65,10 +93,9 @@ fun CoordinateHeader(
                         CircleShape
                     )
             )
-            Spacer(modifier = Modifier.width(7.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = if (userLocation != null) formatCoordinate(userLocation.latitude, userLocation.longitude, coordFormat)
-                else "Locating\u2026",
+                text = if (userLocation != null) formatCoordinate(userLocation.latitude, userLocation.longitude, coordFormat) else "Locating\u2026",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.W500,
                 color = if (locationEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
@@ -81,9 +108,9 @@ fun CoordinateHeader(
 // ── Hint capsule ────────────────────────────────────────────────
 @Composable
 fun HintCapsule() {
-    Surface(shape = RoundedCornerShape(50.dp), color = Color.Black.copy(alpha = 0.65f)) {
-        Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) {
-            Text("Long-press to add", color = Color.White, fontSize = 13.sp)
+    Surface(shape = RoundedCornerShape(50.dp), color = Color.Black.copy(alpha = 0.6f)) {
+        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Text("Long-press to add", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W500)
         }
     }
 }
@@ -98,91 +125,114 @@ fun WaypointCard(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    var showQrDialog by remember { mutableStateOf(false) }
+    var showQrSheet by remember { mutableStateOf(false) }
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
-        shadowElevation = 4.dp
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        shadowElevation = 6.dp
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(10.dp).background(Color(android.graphics.Color.parseColor(waypoint.color)), CircleShape))
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(waypoint.name, fontWeight = FontWeight.W600, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
-                    if (waypoint.notes.isNotBlank()) Text(waypoint.notes, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
-                    if (distance != null) Text(distance, fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                    if (waypoint.notes.isNotBlank()) Text(waypoint.notes, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
+                    if (distance != null) Text(distance, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                CardIconButton(Icons.Filled.Edit, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Edit", onEdit)
+                IosIconButton(Icons.Filled.Edit, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Edit", onEdit)
                 Spacer(modifier = Modifier.width(6.dp))
-                CardIconButton(Icons.Filled.Delete, Color(0xFFFF3B30), Color.White, "Delete", onDelete)
+                IosIconButton(Icons.Filled.Delete, MaterialTheme.colorScheme.error.copy(alpha = 0.12f), MaterialTheme.colorScheme.error, "Delete", onDelete)
                 Spacer(modifier = Modifier.width(6.dp))
-                CardIconButton(Icons.Filled.Close, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Close", onClose)
+                IosIconButton(Icons.Filled.Close, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Close", onClose)
             }
             // Photo thumbnail
             waypoint.photoPath?.let { path ->
-                val file = File(path)
-                if (file.exists()) {
+                if (File(path).exists()) {
                     val bmp = remember(path) { BitmapFactory.decodeFile(path) }
                     bmp?.let {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Image(
-                            bitmap = it.asImageBitmap(),
-                            contentDescription = "Photo",
-                            modifier = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop
-                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Image(bitmap = it.asImageBitmap(), contentDescription = "Photo",
+                            modifier = Modifier.fillMaxWidth().height(80.dp).clip(RoundedCornerShape(10.dp)),
+                            contentScale = ContentScale.Crop)
                     }
                 }
             }
             // Action row
-            Spacer(modifier = Modifier.height(4.dp))
-            Row {
-                TextButton(onClick = { shareWaypoint(context, waypoint) }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Text("Share", fontSize = 12.sp)
-                }
-                TextButton(onClick = { navigateToWaypoint(context, waypoint) }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Text("Navigate", fontSize = 12.sp)
-                }
-                TextButton(onClick = { showQrDialog = true }, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)) {
-                    Text("QR", fontSize = 12.sp)
-                }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IosTextAction("Share") { shareWaypoint(context, waypoint) }
+                IosTextAction("Navigate") { navigateToWaypoint(context, waypoint) }
+                IosTextAction("QR Code") { showQrSheet = true }
             }
         }
     }
 
-    if (showQrDialog) {
-        val geoUri = "geo:${waypoint.latitude},${waypoint.longitude}?q=${waypoint.latitude},${waypoint.longitude}(${Uri.encode(waypoint.name)})"
-        val qrBitmap = remember(waypoint.id) { generateQrBitmap(geoUri) }
-        AlertDialog(
-            onDismissRequest = { showQrDialog = false },
-            title = { Text("QR Code") },
-            text = {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "QR", modifier = Modifier.size(200.dp))
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Scan to open location", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
-                }
-            },
-            confirmButton = { TextButton(onClick = { showQrDialog = false }) { Text("Done") } }
-        )
+    // QR bottom sheet
+    if (showQrSheet) {
+        QrCodeSheet(waypoint = waypoint, onDismiss = { showQrSheet = false })
     }
 }
 
 @Composable
-fun CardIconButton(icon: ImageVector, bgColor: Color, iconColor: Color, desc: String, onClick: () -> Unit) {
-    Surface(modifier = Modifier.size(32.dp), shape = CircleShape, color = bgColor, onClick = onClick) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = desc, tint = iconColor, modifier = Modifier.size(15.dp))
+private fun IosTextAction(label: String, onClick: () -> Unit) {
+    Text(
+        label,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.W500,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.iosClickable(onClick).padding(horizontal = 8.dp, vertical = 6.dp)
+    )
+}
+
+@Composable
+fun IosIconButton(icon: ImageVector, bgColor: Color, iconColor: Color, desc: String, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.size(34.dp),
+        shape = CircleShape,
+        color = bgColor
+    ) {
+        Box(modifier = Modifier.fillMaxSize().iosClickable(onClick), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = desc, tint = iconColor, modifier = Modifier.size(16.dp))
         }
     }
 }
 
-// ── Edit dialog with color picker, icon picker, photo ───────────
+// ── QR Code bottom sheet ────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditWaypointDialog(
+private fun QrCodeSheet(waypoint: Waypoint, onDismiss: () -> Unit) {
+    val geoUri = "geo:${waypoint.latitude},${waypoint.longitude}?q=${waypoint.latitude},${waypoint.longitude}(${Uri.encode(waypoint.name)})"
+    val qrBitmap = remember(waypoint.id) { generateQrBitmap(geoUri) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)
+        ) {
+            Text(waypoint.name, fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(16.dp))
+            Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "QR", modifier = Modifier.size(200.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Scan to open location", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+// ── Drag handle for sheets ──────────────────────────────────────
+@Composable
+fun DragHandle() {
+    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.width(36.dp).height(5.dp).background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50)))
+    }
+}
+
+// ── Edit waypoint bottom sheet ──────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditWaypointSheet(
     waypoint: Waypoint,
     onDismiss: () -> Unit,
     onSave: (name: String, notes: String, color: String, photoPath: String?, icon: String?) -> Unit
@@ -203,77 +253,129 @@ fun EditWaypointDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit Waypoint") },
-        text = {
-            Column {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("Notes") }, maxLines = 3, modifier = Modifier.fillMaxWidth())
-                Spacer(modifier = Modifier.height(12.dp))
-                // Color picker
-                Text("Color", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (hex in PresetColors) {
-                        Box(
-                            modifier = Modifier.size(32.dp)
-                                .background(Color(android.graphics.Color.parseColor(hex)), CircleShape)
-                                .then(if (hex.equals(selectedColor, true)) Modifier.border(2.5.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)
-                                .clickable { selectedColor = hex }
-                        )
-                    }
+    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+            // Top bar
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Cancel", color = MaterialTheme.colorScheme.primary, fontSize = 15.sp,
+                    modifier = Modifier.iosClickable(onDismiss))
+                Spacer(modifier = Modifier.weight(1f))
+                Text("Edit Waypoint", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    "Save",
+                    color = if (name.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                    fontWeight = FontWeight.W600, fontSize = 15.sp,
+                    modifier = Modifier.iosClickable { if (name.isNotBlank()) onSave(name, notes, selectedColor, photoPath, selectedIcon) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+            IosTextField(value = name, onValueChange = { name = it }, placeholder = "Name")
+            Spacer(modifier = Modifier.height(10.dp))
+            IosTextField(value = notes, onValueChange = { notes = it }, placeholder = "Notes", singleLine = false, maxLines = 3)
+
+            // Color picker
+            Spacer(modifier = Modifier.height(18.dp))
+            Text("Color", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                for (hex in PresetColors) {
+                    Box(
+                        modifier = Modifier.size(34.dp)
+                            .background(Color(android.graphics.Color.parseColor(hex)), CircleShape)
+                            .then(if (hex.equals(selectedColor, true)) Modifier.border(2.5.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
+                            .iosClickable { selectedColor = hex }
+                    )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                // Icon picker
-                Text("Icon", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
-                Spacer(modifier = Modifier.height(6.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(WaypointPresetIcons) { preset ->
-                        val isSel = preset.key == selectedIcon
-                        Surface(
-                            modifier = Modifier.size(36.dp),
-                            shape = CircleShape,
-                            color = if (isSel) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
-                            onClick = { selectedIcon = if (selectedIcon == preset.key) null else preset.key }
+            }
+
+            // Icon picker
+            Spacer(modifier = Modifier.height(18.dp))
+            Text("Icon", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(WaypointPresetIcons) { preset ->
+                    val isSel = preset.key == selectedIcon
+                    Surface(
+                        modifier = Modifier.size(38.dp),
+                        shape = CircleShape,
+                        color = if (isSel) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize()
+                                .then(if (isSel) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier)
+                                .iosClickable { selectedIcon = if (selectedIcon == preset.key) null else preset.key },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                if (isSel) {
-                                    Box(modifier = Modifier.matchParentSize().border(2.dp, MaterialTheme.colorScheme.primary, CircleShape))
-                                }
-                                Icon(preset.icon, preset.label, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
-                            }
+                            Icon(preset.icon, preset.label, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onSurface)
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                // Photo
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { photoLauncher.launch("image/*") }) { Text("Choose photo") }
-                    if (photoPath != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        TextButton(onClick = { photoPath = null }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
-                    }
-                }
-                photoPath?.let { path ->
-                    val bmp = remember(path) { BitmapFactory.decodeFile(path) }
-                    bmp?.let {
-                        Image(
-                            bitmap = it.asImageBitmap(),
-                            contentDescription = "Photo",
-                            modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
+            }
+
+            // Photo
+            Spacer(modifier = Modifier.height(18.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Choose Photo", color = MaterialTheme.colorScheme.primary, fontSize = 15.sp,
+                    modifier = Modifier.iosClickable { photoLauncher.launch("image/*") })
+                if (photoPath != null) {
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text("Remove", color = MaterialTheme.colorScheme.error, fontSize = 15.sp,
+                        modifier = Modifier.iosClickable { photoPath = null })
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSave(name, notes, selectedColor, photoPath, selectedIcon) }, enabled = name.isNotBlank()) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
+            photoPath?.let { path ->
+                val bmp = remember(path) { BitmapFactory.decodeFile(path) }
+                bmp?.let {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Image(bitmap = it.asImageBitmap(), contentDescription = "Photo",
+                        modifier = Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop)
+                }
+            }
+        }
+    }
+}
+
+// ── Delete confirmation bottom sheet ────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DeleteConfirmSheet(waypointName: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Delete \"$waypointName\"?", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(6.dp))
+            Text("This action cannot be undone.", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Delete button (full-width, red)
+            Surface(
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.error
+            ) {
+                Box(modifier = Modifier.fillMaxSize().iosClickable(onConfirm), contentAlignment = Alignment.Center) {
+                    Text("Delete", color = Color.White, fontWeight = FontWeight.W600, fontSize = 17.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Cancel button (full-width, gray)
+            Surface(
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                Box(modifier = Modifier.fillMaxSize().iosClickable(onDismiss), contentAlignment = Alignment.Center) {
+                    Text("Cancel", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+    }
 }
 
 private fun shareWaypoint(context: Context, wp: Waypoint) {

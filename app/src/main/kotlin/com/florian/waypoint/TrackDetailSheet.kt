@@ -20,25 +20,21 @@ import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackDetailSheet(
-    track: Track,
-    onDelete: () -> Unit,
-    onDismiss: () -> Unit
-) {
+fun TrackDetailSheet(track: Track, onDelete: () -> Unit, onDismiss: () -> Unit) {
     val stats = remember(track) { computeTrackStats(track.points) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
+    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             // Header
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(12.dp).background(Color(android.graphics.Color.parseColor(track.color)), CircleShape))
+                Box(modifier = Modifier.size(10.dp).background(Color(android.graphics.Color.parseColor(track.color)), CircleShape))
                 Spacer(modifier = Modifier.width(10.dp))
-                Text(track.name, fontWeight = FontWeight.W600, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(track.name, fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Stats grid
+            // Stats
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 StatItem("Distance", formatDistance(stats.distanceMeters).replace(" away", ""))
                 StatItem("Duration", formatDuration(stats.durationMs))
@@ -46,34 +42,34 @@ fun TrackDetailSheet(
             }
 
             if (stats.elevationGain != null || stats.elevationLoss != null) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    stats.elevationGain?.let { StatItem("Elev. Gain", "+${it.toInt()} m") }
-                    stats.elevationLoss?.let { StatItem("Elev. Loss", "-${it.toInt()} m") }
+                    stats.elevationGain?.let { StatItem("Gain", "+${it.toInt()} m") }
+                    stats.elevationLoss?.let { StatItem("Loss", "-${it.toInt()} m") }
                 }
             }
 
             // Elevation profile
             val altitudes = track.points.mapNotNull { it.altitude?.takeIf { a -> a != 0.0 } }
             if (altitudes.size >= 3) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Elevation Profile", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+                Text("Elevation", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                Spacer(modifier = Modifier.height(10.dp))
                 ElevationChart(altitudes = altitudes, color = Color(android.graphics.Color.parseColor(track.color)))
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Delete button
-            OutlinedButton(
-                onClick = onDelete,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("Delete Track")
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Delete
+            Surface(
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f)
+            ) {
+                Box(modifier = Modifier.fillMaxSize().iosClickable(onDelete), contentAlignment = Alignment.Center) {
+                    Text("Delete Track", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.W600, fontSize = 17.sp)
+                }
+            }
         }
     }
 }
@@ -82,57 +78,44 @@ fun TrackDetailSheet(
 private fun StatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.W600, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
-        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
     }
 }
 
 @Composable
 private fun ElevationChart(altitudes: List<Double>, color: Color) {
-    // Smooth with 5-point moving average
     val smoothed = if (altitudes.size >= 5) {
         altitudes.indices.map { i ->
-            val start = maxOf(0, i - 2)
-            val end = minOf(altitudes.size, i + 3)
-            altitudes.subList(start, end).average()
+            altitudes.subList(maxOf(0, i - 2), minOf(altitudes.size, i + 3)).average()
         }
     } else altitudes
 
-    val minAlt = smoothed.min()
-    val maxAlt = smoothed.max()
+    val minAlt = smoothed.min(); val maxAlt = smoothed.max()
     val range = (maxAlt - minAlt).coerceAtLeast(1.0)
-    val lineColor = color
-    val fillColor = color.copy(alpha = 0.15f)
 
-    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) {
+    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) {
         Box {
-            Canvas(modifier = Modifier.fillMaxWidth().height(120.dp).padding(12.dp)) {
+            Canvas(modifier = Modifier.fillMaxWidth().height(120.dp).padding(14.dp)) {
                 val w = size.width; val h = size.height
                 if (smoothed.size < 2) return@Canvas
 
-                val path = Path()
-                val fillPath = Path()
-                fillPath.moveTo(0f, h)
-
+                val line = Path(); val fill = Path()
+                fill.moveTo(0f, h)
                 smoothed.forEachIndexed { i, alt ->
                     val x = i.toFloat() / (smoothed.size - 1) * w
                     val y = h - ((alt - minAlt) / range * h).toFloat()
-                    if (i == 0) { path.moveTo(x, y); fillPath.lineTo(x, y) }
-                    else { path.lineTo(x, y); fillPath.lineTo(x, y) }
+                    if (i == 0) { line.moveTo(x, y); fill.lineTo(x, y) }
+                    else { line.lineTo(x, y); fill.lineTo(x, y) }
                 }
-
-                fillPath.lineTo(w, h)
-                fillPath.close()
-                drawPath(fillPath, fillColor)
-                drawPath(path, lineColor, style = Stroke(width = 2.dp.toPx()))
+                fill.lineTo(w, h); fill.close()
+                drawPath(fill, color.copy(alpha = 0.12f))
+                drawPath(line, color, style = Stroke(width = 2.dp.toPx()))
             }
-
-            // Axis labels
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).align(Alignment.TopStart)) {
-                Text("${maxAlt.toInt()} m", fontSize = 9.sp, color = MaterialTheme.colorScheme.outline)
-            }
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).align(Alignment.BottomStart)) {
-                Text("${minAlt.toInt()} m", fontSize = 9.sp, color = MaterialTheme.colorScheme.outline)
-            }
+            // Labels
+            Text("${maxAlt.toInt()} m", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(start = 14.dp, top = 6.dp).align(Alignment.TopStart))
+            Text("${minAlt.toInt()} m", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(start = 14.dp, bottom = 6.dp).align(Alignment.BottomStart))
         }
     }
 }

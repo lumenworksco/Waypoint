@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -60,17 +62,13 @@ fun MapScreen(store: WaypointStore) {
     var hasCenteredOnUser by remember { mutableStateOf(false) }
 
     // ── UI state ────────────────────────────────────────────────
-    var showEditDialog by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
     var showWaypointList by remember { mutableStateOf(false) }
     var showStyleMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableStateOf<Float?>(null) }
-    var mapStyle by remember { mutableStateOf(
-        runCatching { MapStyle.valueOf(store.loadMapStyle()) }.getOrDefault(MapStyle.STANDARD)
-    ) }
-    var coordFormat by remember { mutableStateOf(
-        runCatching { CoordFormat.valueOf(store.loadCoordFormat()) }.getOrDefault(CoordFormat.DECIMAL)
-    ) }
+    var mapStyle by remember { mutableStateOf(runCatching { MapStyle.valueOf(store.loadMapStyle()) }.getOrDefault(MapStyle.STANDARD)) }
+    var coordFormat by remember { mutableStateOf(runCatching { CoordFormat.valueOf(store.loadCoordFormat()) }.getOrDefault(CoordFormat.DECIMAL)) }
 
     // Delete flow
     var pendingDelete by remember { mutableStateOf<Waypoint?>(null) }
@@ -100,21 +98,15 @@ fun MapScreen(store: WaypointStore) {
             }
         }
     }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { perms ->
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
         if (perms.values.any { it }) {
             try {
-                locationClient.requestLocationUpdates(
-                    LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).setMinUpdateDistanceMeters(2f).build(),
-                    locationCallback, Looper.getMainLooper()
-                )
+                locationClient.requestLocationUpdates(LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000).setMinUpdateDistanceMeters(2f).build(), locationCallback, Looper.getMainLooper())
             } catch (_: SecurityException) { }
         }
     }
 
-    // ── GPX SAF launchers ───────────────────────────────────────
+    // ── SAF launchers ───────────────────────────────────────────
     val exportGpxLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
         uri?.let { context.contentResolver.openOutputStream(it)?.use { os -> os.write(exportGpx(waypoints, tracks).toByteArray()) } }
     }
@@ -126,8 +118,6 @@ fun MapScreen(store: WaypointStore) {
             if (data.tracks.isNotEmpty()) { tracks = tracks + data.tracks; store.saveTracks(tracks) }
         }
     }
-
-    // ── Backup SAF launchers ────────────────────────────────────
     val backupExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri?.let { context.contentResolver.openOutputStream(it)?.use { os -> createBackupZip(context, os) } }
     }
@@ -145,14 +135,9 @@ fun MapScreen(store: WaypointStore) {
 
     // ── Init ────────────────────────────────────────────────────
     LaunchedEffect(Unit) {
-        Configuration.getInstance().apply {
-            userAgentValue = "com.florian.waypoint"
-            tileFileSystemCacheMaxBytes = 100L * 1024 * 1024
-            tileFileSystemCacheTrimBytes = 80L * 1024 * 1024
-        }
+        Configuration.getInstance().apply { userAgentValue = "com.florian.waypoint"; tileFileSystemCacheMaxBytes = 100L * 1024 * 1024; tileFileSystemCacheTrimBytes = 80L * 1024 * 1024 }
         permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
     }
-
     DisposableEffect(Unit) { onDispose { locationClient.removeLocationUpdates(locationCallback) } }
 
     // ── Refresh overlays ────────────────────────────────────────
@@ -172,36 +157,26 @@ fun MapScreen(store: WaypointStore) {
         if (trackRecorder.currentPoints.isNotEmpty()) {
             mapView.overlays.add(Polyline(mapView).apply {
                 setPoints(trackRecorder.currentPoints.map { GeoPoint(it.latitude, it.longitude) })
-                outlinePaint.color = android.graphics.Color.parseColor("#FF2D55")
-                outlinePaint.strokeWidth = 3.5f * density; outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
-                outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND; outlinePaint.isAntiAlias = true
+                outlinePaint.color = android.graphics.Color.parseColor("#FF2D55"); outlinePaint.strokeWidth = 3.5f * density
+                outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND; outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND; outlinePaint.isAntiAlias = true
             })
         }
 
-        // Waypoint markers (with clustering)
+        // Clustered waypoint markers
         val clusters = clusterWaypoints(waypoints, mapView)
         for (cluster in clusters) {
             if (cluster.items.size == 1) {
-                val wp = cluster.items.first()
-                val isSelected = wp.id == selectedWaypoint?.id
+                val wp = cluster.items.first(); val isSelected = wp.id == selectedWaypoint?.id
                 val pinColor = if (isSelected) SelectedPin else Color(android.graphics.Color.parseColor(wp.color))
                 mapView.overlays.add(Marker(mapView).apply {
-                    position = GeoPoint(wp.latitude, wp.longitude)
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                    icon = createPinDrawable(context, pinColor, wp.name, wp.icon)
-                    id = wp.id; setInfoWindow(null)
-                    setOnMarkerClickListener { m, _ ->
-                        vibrate(context, light = true)
-                        selectedWaypoint = waypoints.find { it.id == m.id }
-                        refreshOverlays(mapView); true
-                    }
+                    position = GeoPoint(wp.latitude, wp.longitude); setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    icon = createPinDrawable(context, pinColor, wp.name, wp.icon); id = wp.id; setInfoWindow(null)
+                    setOnMarkerClickListener { m, _ -> vibrate(context, light = true); selectedWaypoint = waypoints.find { it.id == m.id }; refreshOverlays(mapView); true }
                 })
             } else {
                 mapView.overlays.add(Marker(mapView).apply {
-                    position = GeoPoint(cluster.centerLat, cluster.centerLon)
-                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                    icon = createClusterDrawable(context, cluster.items.size)
-                    setInfoWindow(null)
+                    position = GeoPoint(cluster.centerLat, cluster.centerLon); setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    icon = createClusterDrawable(context, cluster.items.size); setInfoWindow(null)
                     setOnMarkerClickListener { _, mv -> mv.controller.animateTo(position, mv.zoomLevelDouble + 2.0, 400); true }
                 })
             }
@@ -211,8 +186,7 @@ fun MapScreen(store: WaypointStore) {
         userLocation?.let { loc ->
             mapView.overlays.add(Marker(mapView).apply {
                 position = loc; setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                icon = createUserDotDrawable(context); setInfoWindow(null)
-                setOnMarkerClickListener { _, _ -> true }
+                icon = createUserDotDrawable(context); setInfoWindow(null); setOnMarkerClickListener { _, _ -> true }
             })
         }
         mapView.invalidate()
@@ -234,283 +208,220 @@ fun MapScreen(store: WaypointStore) {
             MapView(ctx).apply {
                 setTileSource(mapStyle.tileSource()); setMultiTouchControls(true)
                 @Suppress("DEPRECATION") setBuiltInZoomControls(false)
-                minZoomLevel = 3.0; maxZoomLevel = 20.0
-                controller.setZoom(15.0); controller.setCenter(GeoPoint(51.5074, -0.1278))
-
+                minZoomLevel = 3.0; maxZoomLevel = 20.0; controller.setZoom(15.0); controller.setCenter(GeoPoint(51.5074, -0.1278))
                 overlays.add(0, MapEventsOverlay(object : MapEventsReceiver {
                     override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                        if (measureMode) return false
-                        selectedWaypoint = null; refreshOverlays(this@apply); return true
+                        if (measureMode) return false; selectedWaypoint = null; refreshOverlays(this@apply); return true
                     }
                     override fun longPressHelper(p: GeoPoint): Boolean {
-                        vibrate(ctx)
-                        val wp = Waypoint(name = "Waypoint ${waypoints.size + 1}", latitude = p.latitude, longitude = p.longitude)
+                        vibrate(ctx); val wp = Waypoint(name = "Waypoint ${waypoints.size + 1}", latitude = p.latitude, longitude = p.longitude)
                         waypoints = waypoints + wp; store.save(waypoints); refreshOverlays(this@apply); return true
                     }
                 }))
-
-                // Compass, scale bar, rotation
                 overlays.add(CompassOverlay(ctx, this).apply { enableCompass() })
                 overlays.add(ScaleBarOverlay(this).apply {
                     setCentred(false); setAlignBottom(true); setAlignRight(false)
                     setTextSize(10f * resources.displayMetrics.density)
-                    setScaleBarOffset((16 * resources.displayMetrics.density).toInt(), (120 * resources.displayMetrics.density).toInt())
+                    setScaleBarOffset((16 * resources.displayMetrics.density).toInt(), (100 * resources.displayMetrics.density).toInt())
                 })
                 overlays.add(RotationGestureOverlay(this))
-
-                // Refresh on zoom (for clustering)
                 addMapListener(object : MapListener {
                     override fun onScroll(event: ScrollEvent?) = false
                     override fun onZoom(event: ZoomEvent?) = false.also { refreshOverlays(this@apply) }
                 })
-
                 mapViewRef.value = this
             }
         })
 
-        // Top-left: coordinate header
+        // ── Top-left: coordinate header ─────────────────────────
         CoordinateHeader(
-            userLocation = userLocation, locationEnabled = locationEnabled,
-            coordFormat = coordFormat,
-            onToggleFormat = {
-                coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]
-                store.saveCoordFormat(coordFormat.name)
-            },
-            modifier = Modifier.statusBarsPadding().padding(start = 16.dp, top = 10.dp).align(Alignment.TopStart)
+            userLocation = userLocation, locationEnabled = locationEnabled, coordFormat = coordFormat,
+            onToggleFormat = { coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]; store.saveCoordFormat(coordFormat.name) },
+            modifier = Modifier.statusBarsPadding().padding(start = 16.dp, top = 12.dp).align(Alignment.TopStart)
         )
 
-        // Top-right: buttons
+        // ── Top-right: 3 buttons ────────────────────────────────
         Column(
-            modifier = Modifier.statusBarsPadding().padding(end = 16.dp, top = 10.dp).align(Alignment.TopEnd),
+            modifier = Modifier.statusBarsPadding().padding(end = 16.dp, top = 12.dp).align(Alignment.TopEnd),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Map style
             Box {
-                SmallButton(Icons.Filled.Layers, "Map style") { showStyleMenu = true }
+                MapButton(Icons.Filled.Layers, "Map style") { showStyleMenu = true }
                 DropdownMenu(expanded = showStyleMenu, onDismissRequest = { showStyleMenu = false }) {
                     MapStyle.entries.forEach { style ->
-                        DropdownMenuItem(text = { Text(style.label) }, onClick = {
-                            mapStyle = style; store.saveMapStyle(style.name)
-                            mapViewRef.value?.let { it.setTileSource(style.tileSource()); it.invalidate() }
-                            showStyleMenu = false
+                        DropdownMenuItem(text = { Text(style.label, fontSize = 15.sp) }, onClick = {
+                            mapStyle = style; store.saveMapStyle(style.name); mapViewRef.value?.let { it.setTileSource(style.tileSource()); it.invalidate() }; showStyleMenu = false
                         })
                     }
                 }
             }
-            SmallButton(Icons.AutoMirrored.Filled.List, "Waypoints") { showWaypointList = true }
-            // Reset north
-            SmallButton(Icons.Filled.Explore, "Reset North") {
-                vibrate(context, light = true)
-                mapViewRef.value?.apply { mapOrientation = 0f; invalidate() }
-            }
-            // Overflow
+            MapButton(Icons.AutoMirrored.Filled.List, "Waypoints") { showWaypointList = true }
             Box {
-                SmallButton(Icons.Filled.MoreVert, "More") { showOverflowMenu = true }
+                MapButton(Icons.Filled.MoreVert, "More") { showOverflowMenu = true }
                 DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false }) {
-                    DropdownMenuItem(text = { Text("Export GPX") }, onClick = { showOverflowMenu = false; exportGpxLauncher.launch("waypoints.gpx") })
-                    DropdownMenuItem(text = { Text("Import GPX") }, onClick = { showOverflowMenu = false; importGpxLauncher.launch(arrayOf("*/*")) })
-                    HorizontalDivider()
-                    DropdownMenuItem(text = { Text("Backup all data") }, onClick = { showOverflowMenu = false; backupExportLauncher.launch("waypoint-backup.zip") })
-                    DropdownMenuItem(text = { Text("Restore from backup") }, onClick = { showOverflowMenu = false; backupImportLauncher.launch(arrayOf("*/*")) })
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = { Text(if (measureMode) "Stop measuring" else "Measure distance") },
-                        onClick = {
-                            showOverflowMenu = false; measureMode = !measureMode
-                            if (measureMode) {
-                                mapViewRef.value?.let { mv ->
-                                    val ov = MeasureOverlay { measureResult = it }
-                                    ov.activate(); measureOverlayRef.value = ov; mv.overlays.add(ov); mv.invalidate()
-                                }
-                            } else {
-                                measureOverlayRef.value?.let { mapViewRef.value?.overlays?.remove(it); mapViewRef.value?.invalidate() }
-                                measureOverlayRef.value = null; measureResult = null
-                            }
-                        }
-                    )
-                    DropdownMenuItem(text = { Text("Download area") }, onClick = {
-                        showOverflowMenu = false
-                        val map = mapViewRef.value ?: return@DropdownMenuItem
-                        val ts = map.tileProvider.tileSource
-                        if (ts !is OnlineTileSourceBase) return@DropdownMenuItem
+                    DropdownMenuItem(text = { Text("Export GPX", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; exportGpxLauncher.launch("waypoints.gpx") })
+                    DropdownMenuItem(text = { Text("Import GPX", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; importGpxLauncher.launch(arrayOf("*/*")) })
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    DropdownMenuItem(text = { Text("Backup all data", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; backupExportLauncher.launch("waypoint-backup.zip") })
+                    DropdownMenuItem(text = { Text("Restore backup", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; backupImportLauncher.launch(arrayOf("*/*")) })
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    DropdownMenuItem(text = { Text(if (measureMode) "Stop measuring" else "Measure distance", fontSize = 15.sp) }, onClick = {
+                        showOverflowMenu = false; measureMode = !measureMode
+                        if (measureMode) { mapViewRef.value?.let { mv -> val ov = MeasureOverlay { measureResult = it }; ov.activate(); measureOverlayRef.value = ov; mv.overlays.add(ov); mv.invalidate() } }
+                        else { measureOverlayRef.value?.let { mapViewRef.value?.overlays?.remove(it); mapViewRef.value?.invalidate() }; measureOverlayRef.value = null; measureResult = null }
+                    })
+                    DropdownMenuItem(text = { Text("Reset north", fontSize = 15.sp) }, onClick = {
+                        showOverflowMenu = false; vibrate(context, light = true); mapViewRef.value?.apply { mapOrientation = 0f; invalidate() }
+                    })
+                    DropdownMenuItem(text = { Text("Download area", fontSize = 15.sp) }, onClick = {
+                        showOverflowMenu = false; val map = mapViewRef.value ?: return@DropdownMenuItem
+                        val ts = map.tileProvider.tileSource; if (ts !is OnlineTileSourceBase) return@DropdownMenuItem
                         val bb = map.boundingBox; val zoom = map.zoomLevelDouble.toInt(); val maxZ = minOf(zoom + 2, 19)
-                        downloadProgress = 0.01f
-                        val handler = Handler(Looper.getMainLooper())
-                        Thread {
-                            try {
-                                val cm = CacheManager(map); val tiles = CacheManager.getTilesCoverage(bb, zoom, maxZ)
-                                val total = tiles.size.coerceAtLeast(1); var done = 0
-                                for (tile in tiles) { cm.loadTile(ts, tile); done++; if (done % 5 == 0 || done == total) handler.post { downloadProgress = done.toFloat() / total } }
-                            } catch (_: Exception) { }
-                            handler.post { downloadProgress = null }
-                        }.start()
+                        downloadProgress = 0.01f; val handler = Handler(Looper.getMainLooper())
+                        Thread { try { val cm = CacheManager(map); val tiles = CacheManager.getTilesCoverage(bb, zoom, maxZ); val total = tiles.size.coerceAtLeast(1); var done = 0
+                            for (tile in tiles) { cm.loadTile(ts, tile); done++; if (done % 5 == 0 || done == total) handler.post { downloadProgress = done.toFloat() / total } }
+                        } catch (_: Exception) { }; handler.post { downloadProgress = null } }.start()
                     })
                 }
             }
         }
 
-        // Measure result banner
+        // ── Measure result banner ───────────────────────────────
         measureResult?.let { result ->
-            Surface(
-                modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 60.dp),
-                shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), shadowElevation = 4.dp
-            ) { Text(result, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), fontSize = 14.sp) }
+            Surface(modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 60.dp),
+                shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shadowElevation = 4.dp
+            ) { Text(result, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp), fontSize = 15.sp, fontWeight = FontWeight.W500) }
         }
 
-        // Download progress
+        // ── Download progress ───────────────────────────────────
         downloadProgress?.let { progress ->
             LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).align(Alignment.Center))
         }
 
-        // Bottom row
-        Row(
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp),
-            verticalAlignment = Alignment.Bottom
-        ) {
+        // ── Bottom row ──────────────────────────────────────────
+        Row(modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp), verticalAlignment = Alignment.Bottom) {
+            // Card / hint
             Box(modifier = Modifier.weight(1f)) {
                 val sel = selectedWaypoint
                 if (sel != null) {
-                    WaypointCard(
-                        waypoint = sel,
+                    WaypointCard(waypoint = sel,
                         distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(sel.latitude, sel.longitude))) },
-                        onEdit = { showEditDialog = true },
-                        onDelete = { pendingDelete = sel },
-                        onClose = { selectedWaypoint = null }
-                    )
+                        onEdit = { showEditSheet = true }, onDelete = { pendingDelete = sel }, onClose = { selectedWaypoint = null })
                 } else if (waypoints.isEmpty()) HintCapsule()
             }
             Spacer(modifier = Modifier.width(12.dp))
+
+            // Right column: controls
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Pause/resume when recording
+                // Record (with optional pause)
                 if (trackRecorder.isRecording) {
-                    SmallButton(
-                        icon = if (trackRecorder.isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                        description = if (trackRecorder.isPaused) "Resume" else "Pause"
-                    ) { vibrate(context, light = true); if (trackRecorder.isPaused) trackRecorder.resume() else trackRecorder.pause() }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    MapButton(if (trackRecorder.isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                        if (trackRecorder.isPaused) "Resume" else "Pause") { vibrate(context, light = true); if (trackRecorder.isPaused) trackRecorder.resume() else trackRecorder.pause() }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
                 RecordButton(isRecording = trackRecorder.isRecording, isPaused = trackRecorder.isPaused) {
                     vibrate(context)
-                    if (trackRecorder.isRecording) {
-                        val track = trackRecorder.stop()
-                        if (track.points.size >= 2) { tracks = tracks + track; store.saveTracks(tracks) }
-                    } else trackRecorder.start()
+                    if (trackRecorder.isRecording) { val t = trackRecorder.stop(); if (t.points.size >= 2) { tracks = tracks + t; store.saveTracks(tracks) } }
+                    else trackRecorder.start()
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                ZoomButton(Icons.Filled.Add, "Zoom in") { vibrate(context, light = true); mapViewRef.value?.controller?.zoomIn() }
-                Spacer(modifier = Modifier.height(8.dp))
-                ZoomButton(Icons.Filled.Remove, "Zoom out") { vibrate(context, light = true); mapViewRef.value?.controller?.zoomOut() }
+
+                // Zoom pill (Apple Maps style)
+                ZoomPill(
+                    onZoomIn = { vibrate(context, light = true); mapViewRef.value?.controller?.zoomIn() },
+                    onZoomOut = { vibrate(context, light = true); mapViewRef.value?.controller?.zoomOut() }
+                )
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // Recenter
                 RecenterButton(enabled = locationEnabled) {
-                    vibrate(context, light = true)
-                    userLocation?.let { mapViewRef.value?.controller?.animateTo(it, 18.5, 600) }
+                    vibrate(context, light = true); userLocation?.let { mapViewRef.value?.controller?.animateTo(it, 18.5, 600) }
                 }
             }
         }
 
-        // Snackbar host
+        // Snackbar
         SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 80.dp))
     }
 
-    // ── Dialogs / sheets ────────────────────────────────────────
-    // Confirm delete
+    // ── Sheets & dialogs ────────────────────────────────────────
     pendingDelete?.let { wp ->
-        AlertDialog(
-            onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete Waypoint") },
-            text = { Text("Delete \"${wp.name}\"?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    // Delete + photo cleanup
-                    wp.photoPath?.let { File(it).delete() }
-                    waypoints = waypoints.filter { it.id != wp.id }; store.save(waypoints)
-                    selectedWaypoint = null; lastDeleted = wp; pendingDelete = null
-                    scope.launch {
-                        val result = snackbarHostState.showSnackbar("Deleted", actionLabel = "Undo", duration = SnackbarDuration.Short)
-                        if (result == SnackbarResult.ActionPerformed && lastDeleted != null) {
-                            waypoints = waypoints + lastDeleted!!; store.save(waypoints); lastDeleted = null
-                        }
-                    }
-                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } }
-        )
+        DeleteConfirmSheet(waypointName = wp.name, onConfirm = {
+            wp.photoPath?.let { File(it).delete() }
+            waypoints = waypoints.filter { it.id != wp.id }; store.save(waypoints); selectedWaypoint = null; lastDeleted = wp; pendingDelete = null
+            scope.launch {
+                val r = snackbarHostState.showSnackbar("Deleted", actionLabel = "Undo", duration = SnackbarDuration.Short)
+                if (r == SnackbarResult.ActionPerformed && lastDeleted != null) { waypoints = waypoints + lastDeleted!!; store.save(waypoints); lastDeleted = null }
+            }
+        }, onDismiss = { pendingDelete = null })
     }
 
-    // Edit dialog
-    if (showEditDialog) {
+    if (showEditSheet) {
         selectedWaypoint?.let { wp ->
-            EditWaypointDialog(
-                waypoint = wp,
-                onDismiss = { showEditDialog = false },
+            EditWaypointSheet(waypoint = wp, onDismiss = { showEditSheet = false },
                 onSave = { name, notes, color, photoPath, icon ->
-                    val sanitized = name.trim().take(64).ifBlank { "Unnamed Waypoint" }
-                    waypoints = waypoints.map { if (it.id == wp.id) it.copy(name = sanitized, notes = notes.trim(), color = color, photoPath = photoPath, icon = icon) else it }
-                    store.save(waypoints); selectedWaypoint = waypoints.find { it.id == wp.id }
-                    showEditDialog = false; vibrate(context, light = true)
-                }
-            )
+                    val s = name.trim().take(64).ifBlank { "Unnamed Waypoint" }
+                    waypoints = waypoints.map { if (it.id == wp.id) it.copy(name = s, notes = notes.trim(), color = color, photoPath = photoPath, icon = icon) else it }
+                    store.save(waypoints); selectedWaypoint = waypoints.find { it.id == wp.id }; showEditSheet = false; vibrate(context, light = true)
+                })
         }
     }
 
-    // Waypoint list
     if (showWaypointList) {
-        WaypointListSheet(
-            waypoints = waypoints, tracks = tracks, userLocation = userLocation,
-            onSelectWaypoint = { wp ->
-                selectedWaypoint = wp; mapViewRef.value?.controller?.animateTo(GeoPoint(wp.latitude, wp.longitude), 18.0, 800)
-                showWaypointList = false
-            },
-            onSelectTrack = { track ->
-                selectedTrack = track
-                if (track.points.isNotEmpty()) {
-                    val c = GeoPoint(track.points.sumOf { it.latitude } / track.points.size, track.points.sumOf { it.longitude } / track.points.size)
-                    mapViewRef.value?.controller?.animateTo(c, 15.0, 800)
-                }
-                showWaypointList = false
-            },
+        WaypointListSheet(waypoints = waypoints, tracks = tracks, userLocation = userLocation,
+            onSelectWaypoint = { wp -> selectedWaypoint = wp; mapViewRef.value?.controller?.animateTo(GeoPoint(wp.latitude, wp.longitude), 18.0, 800); showWaypointList = false },
+            onSelectTrack = { track -> selectedTrack = track; if (track.points.isNotEmpty()) { val c = GeoPoint(track.points.sumOf { it.latitude } / track.points.size, track.points.sumOf { it.longitude } / track.points.size); mapViewRef.value?.controller?.animateTo(c, 15.0, 800) }; showWaypointList = false },
             onDeleteTrack = { track -> tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks) },
-            onReorderWaypoints = { reordered -> waypoints = reordered; store.save(waypoints); store.saveWaypointOrder(reordered.map { it.id }) },
-            onDismiss = { showWaypointList = false }
-        )
+            onReorderWaypoints = { r -> waypoints = r; store.save(r); store.saveWaypointOrder(r.map { it.id }) },
+            onDismiss = { showWaypointList = false })
     }
 
-    // Track detail
     selectedTrack?.let { track ->
-        TrackDetailSheet(track = track, onDelete = {
-            tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks); selectedTrack = null
-        }, onDismiss = { selectedTrack = null })
+        TrackDetailSheet(track = track, onDelete = { tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks); selectedTrack = null }, onDismiss = { selectedTrack = null })
     }
 }
 
-// ── Small buttons ───────────────────────────────────────────────
+// ── iOS-style map button ────────────────────────────────────────
 @Composable
-private fun SmallButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    Surface(modifier = Modifier.size(40.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f), shadowElevation = 3.dp, onClick = onClick) {
-        Box(contentAlignment = Alignment.Center) { Icon(icon, description, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
+private fun MapButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+    Surface(modifier = Modifier.size(44.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), shadowElevation = 4.dp) {
+        Box(modifier = Modifier.fillMaxSize().iosClickable(onClick), contentAlignment = Alignment.Center) {
+            Icon(icon, description, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        }
     }
 }
 
+// ── Zoom pill (Apple Maps style) ────────────────────────────────
 @Composable
-private fun ZoomButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    Surface(modifier = Modifier.size(42.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 3.dp, onClick = onClick) {
-        Box(contentAlignment = Alignment.Center) { Icon(icon, description, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
+private fun ZoomPill(onZoomIn: () -> Unit, onZoomOut: () -> Unit) {
+    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), shadowElevation = 4.dp) {
+        Column(modifier = Modifier.width(44.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(44.dp).iosClickable(onZoomIn), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Add, "Zoom in", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 8.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(44.dp).iosClickable(onZoomOut), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.Remove, "Zoom out", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            }
+        }
     }
 }
 
 @Composable
 private fun RecenterButton(enabled: Boolean, onClick: () -> Unit) {
-    Surface(modifier = Modifier.size(50.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = if (enabled) 4.dp else 1.dp, onClick = { if (enabled) onClick() }) {
-        Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.MyLocation, "Center", tint = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.4f), modifier = Modifier.size(22.dp)) }
+    Surface(modifier = Modifier.size(50.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), shadowElevation = 4.dp) {
+        Box(modifier = Modifier.fillMaxSize().iosClickable { if (enabled) onClick() }, contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.MyLocation, "Center", tint = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.35f), modifier = Modifier.size(22.dp))
+        }
     }
 }
 
 @Composable
 private fun RecordButton(isRecording: Boolean, isPaused: Boolean = false, onClick: () -> Unit) {
-    val bg = when { isRecording && isPaused -> Color(0xFFFF2D55).copy(alpha = 0.5f); isRecording -> Color(0xFFFF2D55); else -> MaterialTheme.colorScheme.surface }
-    Surface(modifier = Modifier.size(44.dp), shape = CircleShape, color = bg, shadowElevation = 4.dp, onClick = onClick) {
-        Box(contentAlignment = Alignment.Center) {
+    val bg = when { isRecording && isPaused -> Color(0xFFFF2D55).copy(alpha = 0.45f); isRecording -> Color(0xFFFF2D55); else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.88f) }
+    Surface(modifier = Modifier.size(50.dp), shape = CircleShape, color = bg, shadowElevation = 4.dp) {
+        Box(modifier = Modifier.fillMaxSize().iosClickable(onClick), contentAlignment = Alignment.Center) {
             if (isRecording) Icon(Icons.Filled.Stop, "Stop", tint = Color.White, modifier = Modifier.size(22.dp))
             else Icon(Icons.Filled.FiberManualRecord, "Record", tint = Color(0xFFFF2D55), modifier = Modifier.size(18.dp))
         }
