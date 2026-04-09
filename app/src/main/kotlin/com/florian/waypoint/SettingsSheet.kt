@@ -62,8 +62,8 @@ fun SettingsSheet(store: WaypointStore, onDismiss: () -> Unit) {
             Slider(
                 value = defaultZoom,
                 onValueChange = { defaultZoom = it; store.saveSetting("default_zoom", it.toInt().toString()) },
-                valueRange = 5f..19f,
-                steps = 13,
+                valueRange = 10f..19f,
+                steps = 8,
                 modifier = Modifier.fillMaxWidth()
             )
 

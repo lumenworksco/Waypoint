@@ -446,7 +446,10 @@ fun MapScreen(store: WaypointStore) {
 
                 // Recenter
                 RecenterButton(enabled = locationEnabled) {
-                    vibrate(context, light = true); userLocation?.let { mapViewRef.value?.controller?.animateTo(it, 18.5, 600) }
+                    vibrate(context, light = true); userLocation?.let {
+                        val z = store.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
+                        mapViewRef.value?.controller?.animateTo(it, z, 600)
+                    }
                 }
             }
         }
