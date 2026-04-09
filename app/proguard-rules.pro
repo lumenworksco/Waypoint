@@ -11,3 +11,6 @@
 
 # Play Services Location
 -keep class com.google.android.gms.location.** { *; }
+
+# ZXing
+-keep class com.google.zxing.** { *; }

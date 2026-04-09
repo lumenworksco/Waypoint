@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Color
 import org.osmdroid.util.GeoPoint
 import kotlin.math.*
 
-fun createPinDrawable(context: Context, color: Color, label: String): BitmapDrawable {
+fun createPinDrawable(context: Context, color: Color, label: String, iconKey: String? = null): BitmapDrawable {
     val density = context.resources.displayMetrics.density
     val headR = 13 * density
     val pinH = 38 * density
@@ -68,10 +68,21 @@ fun createPinDrawable(context: Context, color: Color, label: String): BitmapDraw
     }
     canvas.drawPath(path, pinPaint)
 
-    // White inner dot
-    canvas.drawCircle(cx, headCy, innerR, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.WHITE
-    })
+    // Inner: icon symbol or white dot
+    val symbol = iconSymbol(iconKey)
+    if (symbol != null) {
+        val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = android.graphics.Color.WHITE
+            textSize = 10 * density
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+        canvas.drawText(symbol, cx, headCy + iconPaint.textSize / 3, iconPaint)
+    } else {
+        canvas.drawCircle(cx, headCy, innerR, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = android.graphics.Color.WHITE
+        })
+    }
 
     return BitmapDrawable(context.resources, bmp)
 }

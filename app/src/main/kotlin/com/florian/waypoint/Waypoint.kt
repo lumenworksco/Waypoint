@@ -9,7 +9,9 @@ data class Waypoint(
     val longitude: Double,
     val notes: String = "",
     val timestamp: Long = System.currentTimeMillis(),
-    val color: String = "#3C3734"
+    val color: String = "#3C3734",
+    val photoPath: String? = null,
+    val icon: String? = null
 )
 
 data class TrackPoint(
