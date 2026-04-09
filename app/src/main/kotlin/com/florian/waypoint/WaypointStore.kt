@@ -45,4 +45,8 @@ class WaypointStore(context: Context) {
     fun saveWaypointOrder(ids: List<String>) {
         prefs.edit().putString("waypoint_order", gson.toJson(ids)).apply()
     }
+
+    // Generic settings
+    fun loadSetting(key: String, default: String): String = prefs.getString("setting_$key", default) ?: default
+    fun saveSetting(key: String, value: String) { prefs.edit().putString("setting_$key", value).apply() }
 }

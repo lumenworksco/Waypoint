@@ -70,6 +70,7 @@ fun CoordinateHeader(
     userLocation: GeoPoint?,
     locationEnabled: Boolean,
     coordFormat: CoordFormat,
+    speedText: String?,
     onToggleFormat: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -101,6 +102,10 @@ fun CoordinateHeader(
                 color = if (locationEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
                 letterSpacing = 0.2.sp
             )
+            if (speedText != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(speedText, fontSize = 12.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }

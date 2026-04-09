@@ -85,9 +85,17 @@ fun MapScreen(store: WaypointStore) {
     // Track detail
     var selectedTrack by remember { mutableStateOf<Track?>(null) }
 
+    // Settings
+    var showSettings by remember { mutableStateOf(false) }
+    var showImportLink by remember { mutableStateOf(false) }
+    val useImperial = remember(Unit) { store.loadSetting("distance_unit", "METRIC") == "IMPERIAL" }
+    val proximityRadius = remember(Unit) { store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0 }
+    var lastProximityAlert by remember { mutableStateOf(0L) }
+
     val mapViewRef = remember { mutableStateOf<MapView?>(null) }
     var mapRotation by remember { mutableFloatStateOf(0f) }
     var metersPerPx by remember { mutableFloatStateOf(1f) }
+    var currentSpeed by remember { mutableFloatStateOf(0f) }
     val trackRecorder = remember { TrackRecorder() }
 
     // ── Location ────────────────────────────────────────────────
@@ -98,7 +106,22 @@ fun MapScreen(store: WaypointStore) {
                 val loc = result.lastLocation ?: return
                 userLocation = GeoPoint(loc.latitude, loc.longitude)
                 locationEnabled = true
+                currentSpeed = if (loc.hasSpeed()) loc.speed else 0f
                 if (trackRecorder.isRecording) trackRecorder.addPoint(loc.latitude, loc.longitude, loc.altitude)
+
+                // Proximity alerts
+                val radius = store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0
+                if (radius > 0) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastProximityAlert > 15000) { // max once per 15s
+                        val gp = GeoPoint(loc.latitude, loc.longitude)
+                        for (wp in waypoints) {
+                            if (distanceMeters(gp, GeoPoint(wp.latitude, wp.longitude)) < radius) {
+                                vibrate(context); lastProximityAlert = now; break
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -251,6 +274,7 @@ fun MapScreen(store: WaypointStore) {
             })
             CoordinateHeader(
                 userLocation = userLocation, locationEnabled = locationEnabled, coordFormat = coordFormat,
+                speedText = formatSpeed(currentSpeed, useImperial),
                 onToggleFormat = { coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]; store.saveCoordFormat(coordFormat.name) },
             )
         }
@@ -303,6 +327,9 @@ fun MapScreen(store: WaypointStore) {
                             for (tile in tiles) { cm.loadTile(ts, tile); done++; if (done % 5 == 0 || done == total) handler.post { downloadProgress = done.toFloat() / total } }
                         } catch (_: Exception) { }; handler.post { downloadProgress = null } }.start()
                     })
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 12.dp))
+                    DropdownMenuItem(text = { Text("Import from link", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; showImportLink = true })
+                    DropdownMenuItem(text = { Text("Settings", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; showSettings = true })
                 }
             }
         }
@@ -357,8 +384,14 @@ fun MapScreen(store: WaypointStore) {
                 }
                 RecordButton(isRecording = trackRecorder.isRecording, isPaused = trackRecorder.isPaused) {
                     vibrate(context)
-                    if (trackRecorder.isRecording) { val t = trackRecorder.stop(); if (t.points.size >= 2) { tracks = tracks + t; store.saveTracks(tracks) } }
-                    else trackRecorder.start()
+                    if (trackRecorder.isRecording) {
+                        val t = trackRecorder.stop(); if (t.points.size >= 2) { tracks = tracks + t; store.saveTracks(tracks) }
+                        context.stopService(android.content.Intent(context, TrackingService::class.java))
+                    } else {
+                        trackRecorder.start()
+                        TrackingService.onLocationUpdate = { lat, lon, alt -> trackRecorder.addPoint(lat, lon, alt) }
+                        context.startForegroundService(android.content.Intent(context, TrackingService::class.java))
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -429,6 +462,53 @@ fun MapScreen(store: WaypointStore) {
 
     selectedTrack?.let { track ->
         TrackDetailSheet(track = track, onDelete = { tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks); selectedTrack = null }, onDismiss = { selectedTrack = null })
+    }
+
+    if (showSettings) {
+        SettingsSheet(store = store, onDismiss = { showSettings = false })
+    }
+
+    if (showImportLink) {
+        ImportLinkDialog(
+            onImport = { lat, lon, name ->
+                val wp = Waypoint(name = name, latitude = lat, longitude = lon)
+                waypoints = waypoints + wp; store.save(waypoints)
+                mapViewRef.value?.controller?.animateTo(GeoPoint(lat, lon), 16.0, 800)
+                showImportLink = false
+            },
+            onDismiss = { showImportLink = false }
+        )
+    }
+}
+
+// ── Import from link dialog ─────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ImportLinkDialog(onImport: (lat: Double, lon: Double, name: String) -> Unit, onDismiss: () -> Unit) {
+    var link by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf(false) }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Cancel", color = MaterialTheme.colorScheme.primary, fontSize = 15.sp, modifier = Modifier.iosClickable(onDismiss))
+                Spacer(modifier = Modifier.weight(1f))
+                Text("Import from Link", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+                Spacer(modifier = Modifier.weight(1f))
+                Text("Import", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.W600, fontSize = 15.sp,
+                    modifier = Modifier.iosClickable {
+                        val coords = parseGoogleMapsLink(link)
+                        if (coords != null) onImport(coords.first, coords.second, "Imported")
+                        else error = true
+                    })
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            IosTextField(value = link, onValueChange = { link = it; error = false }, placeholder = "Paste a Google Maps link")
+            if (error) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Could not find coordinates in this link", fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
+            }
+        }
     }
 }
 

@@ -134,9 +134,39 @@ fun distanceMeters(a: GeoPoint, b: GeoPoint): Double {
     return 2 * r * asin(sqrt(h))
 }
 
-fun formatDistance(meters: Double): String =
-    if (meters < 1000) "${meters.toInt()} m away"
-    else "%.1f km away".format(meters / 1000)
+fun formatDistance(meters: Double, imperial: Boolean = false): String =
+    if (imperial) {
+        val feet = meters * 3.28084
+        if (feet < 5280) "${feet.toInt()} ft away" else "%.1f mi away".format(feet / 5280)
+    } else {
+        if (meters < 1000) "${meters.toInt()} m away" else "%.1f km away".format(meters / 1000)
+    }
+
+fun formatSpeed(speedMps: Float, imperial: Boolean = false): String? {
+    if (speedMps < 0.3f) return null // standing still
+    return if (imperial) "%.1f mph".format(speedMps * 2.23694)
+    else "%.1f km/h".format(speedMps * 3.6)
+}
+
+/** Parse a Google Maps shared URL into lat/lon, or null. */
+fun parseGoogleMapsLink(text: String): Pair<Double, Double>? {
+    // Patterns: ?q=lat,lon  or @lat,lon  or /place/lat,lon
+    val patterns = listOf(
+        Regex("""[?&]q=(-?\d+\.?\d*),\s*(-?\d+\.?\d*)"""),
+        Regex("""@(-?\d+\.?\d*),\s*(-?\d+\.?\d*)"""),
+        Regex("""/place/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)"""),
+        Regex("""maps\?.*ll=(-?\d+\.?\d*),\s*(-?\d+\.?\d*)"""),
+    )
+    for (p in patterns) {
+        val m = p.find(text)
+        if (m != null) {
+            val lat = m.groupValues[1].toDoubleOrNull() ?: continue
+            val lon = m.groupValues[2].toDoubleOrNull() ?: continue
+            if (lat in -90.0..90.0 && lon in -180.0..180.0) return lat to lon
+        }
+    }
+    return null
+}
 
 fun vibrate(context: Context, light: Boolean = false) {
     @Suppress("DEPRECATION")
