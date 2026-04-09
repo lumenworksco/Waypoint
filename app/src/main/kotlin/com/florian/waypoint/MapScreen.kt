@@ -7,6 +7,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,8 +45,6 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
-import org.osmdroid.views.overlay.ScaleBarOverlay
-import org.osmdroid.views.overlay.compass.CompassOverlay
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay
 import java.io.File
 
@@ -84,8 +86,8 @@ fun MapScreen(store: WaypointStore) {
     var selectedTrack by remember { mutableStateOf<Track?>(null) }
 
     val mapViewRef = remember { mutableStateOf<MapView?>(null) }
-    val scaleBarRef = remember { mutableStateOf<ScaleBarOverlay?>(null) }
-    val compassRef = remember { mutableStateOf<CompassOverlay?>(null) }
+    var mapRotation by remember { mutableFloatStateOf(0f) }
+    var metersPerPx by remember { mutableFloatStateOf(1f) }
     val trackRecorder = remember { TrackRecorder() }
 
     // ── Location ────────────────────────────────────────────────
@@ -202,13 +204,6 @@ fun MapScreen(store: WaypointStore) {
     }
     LaunchedEffect(waypoints, selectedWaypoint, tracks) { mapViewRef.value?.let { refreshOverlays(it) } }
     LaunchedEffect(mapStyle) { mapViewRef.value?.let { it.setTileSource(mapStyle.tileSource()); it.invalidate() } }
-    // Hide scale bar & compass when a waypoint card is showing
-    LaunchedEffect(selectedWaypoint) {
-        val hidden = selectedWaypoint != null
-        scaleBarRef.value?.isEnabled = !hidden
-        compassRef.value?.isEnabled = !hidden
-        mapViewRef.value?.invalidate()
-    }
 
     // ── UI ──────────────────────────────────────────────────────
     Box(modifier = Modifier.fillMaxSize()) {
@@ -227,21 +222,17 @@ fun MapScreen(store: WaypointStore) {
                         waypoints = waypoints + wp; store.save(waypoints); refreshOverlays(this@apply); return true
                     }
                 }))
-                val sb = ScaleBarOverlay(this).apply {
-                    setCentred(false); setAlignBottom(true); setAlignRight(false)
-                    setTextSize(10f * resources.displayMetrics.density)
-                    setScaleBarOffset((16 * resources.displayMetrics.density).toInt(), (100 * resources.displayMetrics.density).toInt())
-                }
-                overlays.add(sb); scaleBarRef.value = sb
-                val co = CompassOverlay(ctx, this).apply {
-                    enableCompass()
-                    setCompassCenter(36f, resources.displayMetrics.heightPixels / resources.displayMetrics.density - 180f)
-                }
-                overlays.add(co); compassRef.value = co
                 overlays.add(RotationGestureOverlay(this))
                 addMapListener(object : MapListener {
-                    override fun onScroll(event: ScrollEvent?) = false
-                    override fun onZoom(event: ZoomEvent?) = false.also { refreshOverlays(this@apply) }
+                    override fun onScroll(event: ScrollEvent?) = false.also {
+                        mapRotation = mapOrientation
+                        projection?.let { p -> val px = p.metersToPixels(1000f); if (px > 0) metersPerPx = 1000f / px }
+                    }
+                    override fun onZoom(event: ZoomEvent?) = false.also {
+                        refreshOverlays(this@apply)
+                        mapRotation = mapOrientation
+                        projection?.let { p -> val px = p.metersToPixels(1000f); if (px > 0) metersPerPx = 1000f / px }
+                    }
                 })
                 mapViewRef.value = this
             }
@@ -306,6 +297,27 @@ fun MapScreen(store: WaypointStore) {
             Surface(modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 60.dp),
                 shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.primary, shadowElevation = 4.dp
             ) { Text(result, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp), fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onPrimary) }
+        }
+
+        // ── Bottom-left: compass + scale bar (hidden when card open) ──
+        if (selectedWaypoint == null) {
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart).navigationBarsPadding().padding(start = 16.dp, bottom = 100.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Compass — only shows when map is rotated
+                val rotation = mapRotation
+                if (rotation != 0f) {
+                    ComposeCompass(rotation = rotation, onClick = {
+                        vibrate(context, light = true)
+                        mapViewRef.value?.apply { mapOrientation = 0f; invalidate() }
+                        mapRotation = 0f
+                    })
+                }
+                // Scale bar
+                ComposeScaleBar(metersPerPx = metersPerPx)
+            }
         }
 
         // ── Download progress ───────────────────────────────────
@@ -455,4 +467,68 @@ private fun RecordButton(isRecording: Boolean, isPaused: Boolean = false, onClic
             else Icon(Icons.Filled.FiberManualRecord, "Record", tint = Color(0xFFFF2D55), modifier = Modifier.size(18.dp))
         }
     }
+}
+
+// ── Compose compass (Apple Maps style) ──────────────────────────
+@Composable
+private fun ComposeCompass(rotation: Float, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.size(40.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        shadowElevation = 4.dp
+    ) {
+        Box(modifier = Modifier.fillMaxSize().iosClickable(onClick), contentAlignment = Alignment.Center) {
+            Canvas(modifier = Modifier.size(20.dp).rotate(-rotation)) {
+                val cx = size.width / 2; val cy = size.height / 2
+                // Red north half
+                val northPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx, 0f); lineTo(cx + 5.dp.toPx(), cy); lineTo(cx - 5.dp.toPx(), cy); close()
+                }
+                drawPath(northPath, Color(0xFFFF3B30))
+                // White south half
+                val southPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx, size.height); lineTo(cx + 5.dp.toPx(), cy); lineTo(cx - 5.dp.toPx(), cy); close()
+                }
+                drawPath(southPath, Color(0xFFE5E5EA))
+            }
+        }
+    }
+}
+
+// ── Compose scale bar (minimal iOS style) ───────────────────────
+@Composable
+private fun ComposeScaleBar(metersPerPx: Float) {
+    // Pick a nice round distance that fits in ~80px
+    val targetPx = 80f
+    val rawMeters = metersPerPx * targetPx
+    val niceMeters = niceRound(rawMeters)
+    val barWidth = (niceMeters / metersPerPx).coerceIn(30f, 150f)
+    val label = if (niceMeters >= 1000) "${"%.0f".format(niceMeters / 1000)} km" else "${"%.0f".format(niceMeters)} m"
+    val color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+
+    Column(horizontalAlignment = Alignment.Start) {
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.W500, color = color)
+        Spacer(modifier = Modifier.height(2.dp))
+        Canvas(modifier = Modifier.width(barWidth.dp).height(4.dp)) {
+            val h = size.height; val w = size.width
+            val stroke = 1.5.dp.toPx()
+            val c = color.hashCode().toLong().let { android.graphics.Color.argb(178, 28, 28, 30) }
+            val paint = android.graphics.Paint().apply { this.color = c; strokeWidth = stroke; isAntiAlias = true }
+            // Horizontal bar
+            drawLine(color, Offset(0f, h / 2), Offset(w, h / 2), strokeWidth = stroke)
+            // End caps
+            drawLine(color, Offset(0f, 0f), Offset(0f, h), strokeWidth = stroke)
+            drawLine(color, Offset(w, 0f), Offset(w, h), strokeWidth = stroke)
+        }
+    }
+}
+
+private fun niceRound(meters: Float): Float = when {
+    meters >= 5000 -> (meters / 1000).toInt().toFloat() * 1000
+    meters >= 1000 -> ((meters / 500).toInt() * 500).toFloat()
+    meters >= 200 -> ((meters / 100).toInt() * 100).toFloat()
+    meters >= 50 -> ((meters / 50).toInt() * 50).toFloat()
+    meters >= 10 -> ((meters / 10).toInt() * 10).toFloat()
+    else -> ((meters / 5).toInt() * 5).toFloat().coerceAtLeast(5f)
 }
