@@ -40,8 +40,6 @@ private val SelectedPin = Color(0xFFDC5028)
 @Composable
 fun MapScreen(store: WaypointStore) {
     val context = LocalContext.current
-    val isDark = isSystemInDarkTheme()
-
     // ── Core state ──────────────────────────────────────────────
     var waypoints by remember { mutableStateOf(store.load()) }
     var tracks by remember { mutableStateOf(store.loadTracks()) }
@@ -319,30 +317,28 @@ fun MapScreen(store: WaypointStore) {
                         onClick = {
                             showOverflowMenu = false
                             val map = mapViewRef.value ?: return@DropdownMenuItem
-                            downloadProgress = 0f
-                            val cm = CacheManager(map)
+                            val tileSource = map.tileProvider.tileSource
+                            if (tileSource !is org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase) return@DropdownMenuItem
+                            val bb = map.boundingBox
                             val zoom = map.zoomLevelDouble.toInt()
+                            val maxZoom = minOf(zoom + 2, 19)
+                            downloadProgress = 0.01f
                             val handler = Handler(Looper.getMainLooper())
                             Thread {
                                 try {
-                                    cm.downloadAreaAsync(context, map.boundingBox, zoom, minOf(zoom + 2, 19),
-                                        object : CacheManager.CacheManagerCallback {
-                                            override fun onTaskComplete() {
-                                                handler.post { downloadProgress = null }
-                                            }
-                                            override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) {
-                                                handler.post { downloadProgress = progress / 100f }
-                                            }
-                                            override fun downloadStarted() {}
-                                            override fun setPossibleTilesInArea(total: Int) {}
-                                            override fun onTaskFailed(errors: Int) {
-                                                handler.post { downloadProgress = null }
-                                            }
+                                    val cm = CacheManager(map)
+                                    val tiles = CacheManager.getTilesCoverage(bb, zoom, maxZoom)
+                                    val total = tiles.size.coerceAtLeast(1)
+                                    var done = 0
+                                    for (tile in tiles) {
+                                        cm.loadTile(tileSource, tile)
+                                        done++
+                                        if (done % 5 == 0 || done == total) {
+                                            handler.post { downloadProgress = done.toFloat() / total }
                                         }
-                                    )
-                                } catch (_: Exception) {
-                                    handler.post { downloadProgress = null }
-                                }
+                                    }
+                                } catch (_: Exception) { }
+                                handler.post { downloadProgress = null }
                             }.start()
                         }
                     )
