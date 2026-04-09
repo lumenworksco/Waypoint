@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.Canvas
@@ -21,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -85,11 +87,11 @@ fun MapScreen(store: WaypointStore) {
     // Track detail
     var selectedTrack by remember { mutableStateOf<Track?>(null) }
 
-    // Settings
+    // Settings (re-read from prefs each recomposition so changes take effect immediately)
     var showSettings by remember { mutableStateOf(false) }
     var showImportLink by remember { mutableStateOf(false) }
-    val useImperial = remember(Unit) { store.loadSetting("distance_unit", "METRIC") == "IMPERIAL" }
-    val proximityRadius = remember(Unit) { store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0 }
+    var settingsVersion by remember { mutableIntStateOf(0) } // bump to force re-read
+    val useImperial = remember(settingsVersion) { store.loadSetting("distance_unit", "METRIC") == "IMPERIAL" }
     var lastProximityAlert by remember { mutableStateOf(0L) }
 
     val mapViewRef = remember { mutableStateOf<MapView?>(null) }
@@ -349,9 +351,31 @@ fun MapScreen(store: WaypointStore) {
             )
         }
 
-        // ── Download progress ───────────────────────────────────
+        // ── Download progress pill ──────────────────────────────
         downloadProgress?.let { progress ->
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp).align(Alignment.Center))
+            Surface(
+                modifier = Modifier.align(Alignment.Center),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Downloading tiles\u2026", fontSize = 14.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onSurface)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.width(180.dp).height(4.dp),
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeCap = StrokeCap.Round
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("${(progress * 100).toInt()}%", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                }
+            }
         }
 
         // ── Hint capsule (centered at bottom) ───────────────────
@@ -368,7 +392,7 @@ fun MapScreen(store: WaypointStore) {
                 val sel = selectedWaypoint
                 if (sel != null) {
                     WaypointCard(waypoint = sel,
-                        distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(sel.latitude, sel.longitude))) },
+                        distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(sel.latitude, sel.longitude)), useImperial) },
                         onEdit = { showEditSheet = true }, onDelete = { pendingDelete = sel }, onClose = { selectedWaypoint = null })
                 }
             }
@@ -386,11 +410,10 @@ fun MapScreen(store: WaypointStore) {
                     vibrate(context)
                     if (trackRecorder.isRecording) {
                         val t = trackRecorder.stop(); if (t.points.size >= 2) { tracks = tracks + t; store.saveTracks(tracks) }
-                        context.stopService(android.content.Intent(context, TrackingService::class.java))
+                        try { context.stopService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
                     } else {
                         trackRecorder.start()
-                        TrackingService.onLocationUpdate = { lat, lon, alt -> trackRecorder.addPoint(lat, lon, alt) }
-                        context.startForegroundService(android.content.Intent(context, TrackingService::class.java))
+                        try { context.startForegroundService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -465,7 +488,7 @@ fun MapScreen(store: WaypointStore) {
     }
 
     if (showSettings) {
-        SettingsSheet(store = store, onDismiss = { showSettings = false })
+        SettingsSheet(store = store, onDismiss = { showSettings = false; settingsVersion++ })
     }
 
     if (showImportLink) {
