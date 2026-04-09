@@ -137,12 +137,16 @@ fun MapScreen(store: WaypointStore) {
     fun refreshOverlays(mapView: MapView) {
         mapView.overlays.removeAll { it is Marker || it is Polyline }
 
+        val density = context.resources.displayMetrics.density
+
         // Tracks (below markers)
         for (track in tracks) {
             mapView.overlays.add(Polyline(mapView).apply {
                 setPoints(track.points.map { GeoPoint(it.latitude, it.longitude) })
                 outlinePaint.color = android.graphics.Color.parseColor(track.color)
-                outlinePaint.strokeWidth = 4f * context.resources.displayMetrics.density
+                outlinePaint.strokeWidth = 3f * density
+                outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
                 outlinePaint.isAntiAlias = true
             })
         }
@@ -151,7 +155,9 @@ fun MapScreen(store: WaypointStore) {
             mapView.overlays.add(Polyline(mapView).apply {
                 setPoints(trackRecorder.currentPoints.map { GeoPoint(it.latitude, it.longitude) })
                 outlinePaint.color = android.graphics.Color.parseColor("#FF2D55")
-                outlinePaint.strokeWidth = 5f * context.resources.displayMetrics.density
+                outlinePaint.strokeWidth = 3.5f * density
+                outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
                 outlinePaint.isAntiAlias = true
             })
         }
@@ -165,8 +171,8 @@ fun MapScreen(store: WaypointStore) {
                 position = GeoPoint(wp.latitude, wp.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 icon = createPinDrawable(context, pinColor, wp.name)
-                title = wp.name
                 id = wp.id
+                setInfoWindow(null)
                 setOnMarkerClickListener { m, _ ->
                     vibrate(context, light = true)
                     selectedWaypoint = waypoints.find { it.id == m.id }
@@ -182,6 +188,7 @@ fun MapScreen(store: WaypointStore) {
                 position = loc
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 icon = createUserDotDrawable(context)
+                setInfoWindow(null)
                 setOnMarkerClickListener { _, _ -> true }
             })
         }
