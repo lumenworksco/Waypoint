@@ -25,23 +25,31 @@
     <p>WayPoint is an Android app developed by Florian Braun (Lumen Studios). This Privacy Policy explains how the app handles your data.</p>
 
     <h2>Data We Collect</h2>
-    <p>WayPoint accesses your device's location (GPS) to display your position on the map and to calculate distances to your saved waypoints. Location data is used only within the app and is never transmitted to any server or third party by WayPoint itself.</p>
+    <p>WayPoint accesses your device's location (GPS) to display your position on the map, calculate distances to your saved waypoints, and record tracks. Location data is used only within the app and is never transmitted to any server or third party by WayPoint itself.</p>
+    <p>Photos you attach to waypoints are stored locally on your device. They are never uploaded or shared unless you explicitly choose to do so.</p>
 
     <h2>Data Storage</h2>
-    <p>Waypoints you save are stored locally on your device only. We do not use any cloud storage, databases, or external servers. Your data never leaves your device.</p>
+    <p>Waypoints, tracks, settings, and photos are stored locally on your device only. We do not use any cloud storage, databases, or external servers. Your data never leaves your device unless you explicitly export it (e.g., GPX export or backup).</p>
 
     <h2>Third-Party Services</h2>
-    <p>WayPoint uses the following third-party services:</p>
+    <p>WayPoint uses the following third-party services for map tile imagery:</p>
     <ul>
-        <li><strong>OpenStreetMap</strong> – map tile images are loaded from OpenStreetMap tile servers. These requests may include your IP address as part of standard internet communication. See the <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank">OpenStreetMap Privacy Policy</a>.</li>
+        <li><strong>OpenStreetMap</strong> – standard map tiles. See the <a href="https://wiki.osmfoundation.org/wiki/Privacy_Policy" target="_blank">OpenStreetMap Privacy Policy</a>.</li>
+        <li><strong>CartoDB</strong> – dark mode map tiles. See the <a href="https://carto.com/privacy/" target="_blank">CARTO Privacy Policy</a>.</li>
+        <li><strong>Esri</strong> – satellite imagery tiles. See the <a href="https://www.esri.com/en-us/privacy/overview" target="_blank">Esri Privacy Policy</a>.</li>
         <li><strong>Google Play Services Location</strong> – used to determine your device's position. Location processing is handled on-device by Google Play Services. See the <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a>.</li>
     </ul>
+    <p>When loading map tiles, your device makes network requests that may include your IP address as part of standard internet communication.</p>
 
     <h2>Permissions</h2>
     <p>WayPoint requests the following Android permissions:</p>
     <ul>
         <li><strong>ACCESS_FINE_LOCATION</strong> – to show your precise position on the map</li>
         <li><strong>ACCESS_COARSE_LOCATION</strong> – as a fallback for approximate location</li>
+        <li><strong>FOREGROUND_SERVICE (Location)</strong> – to continue recording tracks when the app is in the background</li>
+        <li><strong>POST_NOTIFICATIONS</strong> – to show a notification while recording a track</li>
+        <li><strong>INTERNET</strong> – to download map tile images</li>
+        <li><strong>VIBRATE</strong> – for haptic feedback and proximity alerts</li>
     </ul>
     <p>You can revoke these permissions at any time in your device settings. Without location permission, the app's core functionality will be limited.</p>
 

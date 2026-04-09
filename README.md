@@ -42,12 +42,12 @@ An Android app for dropping and managing geographical waypoints on OpenStreetMap
 - **Offline Persistence** -- All data saved locally, survives app restarts
 - **Coordinate Formats** -- Tap the header to cycle between Decimal, DMS, and UTM
 
-### Settings
+### Tools & Settings
+- **Measure Distance** -- Tap two points on the map to measure straight-line distance
 - **Distance Units** -- Metric (km/m) or Imperial (mi/ft)
 - **Default Zoom** -- Set your preferred zoom level (10--19)
 - **Proximity Radius** -- Configure alert distance (0--500m)
 - **Tile Cache** -- View size and clear offline map cache
-- **Measure Distance** -- Tap two points on the map to measure straight-line distance
 
 ## Architecture
 
