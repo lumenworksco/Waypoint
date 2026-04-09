@@ -124,6 +124,10 @@ fun createUserDotDrawable(context: Context): BitmapDrawable {
     return BitmapDrawable(context.resources, bmp)
 }
 
+/** Safe color parse — returns default charcoal on invalid hex. */
+fun safeParseColor(hex: String?): Int =
+    try { android.graphics.Color.parseColor(hex ?: "#3C3734") } catch (_: Exception) { android.graphics.Color.parseColor("#3C3734") }
+
 fun distanceMeters(a: GeoPoint, b: GeoPoint): Double {
     val r = 6371000.0
     val dLat = Math.toRadians(b.latitude - a.latitude)

@@ -36,7 +36,8 @@ class MeasureOverlay(
             }
             point2 == null -> {
                 point2 = tapped
-                val dist = distanceMeters(point1!!, tapped)
+                val p = point1 ?: return false
+                val dist = distanceMeters(p, tapped)
                 onResult(formatDistance(dist).replace(" away", ""))
             }
             else -> reset()

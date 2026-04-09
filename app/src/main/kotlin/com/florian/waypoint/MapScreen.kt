@@ -180,7 +180,7 @@ fun MapScreen(store: WaypointStore) {
         for (track in tracks) {
             mapView.overlays.add(Polyline(mapView).apply {
                 setPoints(track.points.map { GeoPoint(it.latitude, it.longitude) })
-                outlinePaint.color = android.graphics.Color.parseColor(track.color)
+                outlinePaint.color = safeParseColor(track.color)
                 outlinePaint.strokeWidth = 3f * density; outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
                 outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND; outlinePaint.isAntiAlias = true
             })
@@ -188,7 +188,7 @@ fun MapScreen(store: WaypointStore) {
         if (trackRecorder.currentPoints.isNotEmpty()) {
             mapView.overlays.add(Polyline(mapView).apply {
                 setPoints(trackRecorder.currentPoints.map { GeoPoint(it.latitude, it.longitude) })
-                outlinePaint.color = android.graphics.Color.parseColor("#FF2D55"); outlinePaint.strokeWidth = 3.5f * density
+                outlinePaint.color = safeParseColor("#FF2D55"); outlinePaint.strokeWidth = 3.5f * density
                 outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND; outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND; outlinePaint.isAntiAlias = true
             })
         }
@@ -198,7 +198,7 @@ fun MapScreen(store: WaypointStore) {
         for (cluster in clusters) {
             if (cluster.items.size == 1) {
                 val wp = cluster.items.first(); val isSelected = wp.id == selectedWaypoint?.id
-                val pinColor = if (isSelected) SelectedPin else Color(android.graphics.Color.parseColor(wp.color))
+                val pinColor = if (isSelected) SelectedPin else Color(safeParseColor(wp.color))
                 mapView.overlays.add(Marker(mapView).apply {
                     position = GeoPoint(wp.latitude, wp.longitude); setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     icon = createPinDrawable(context, pinColor, wp.name, wp.icon); id = wp.id; setInfoWindow(null)
@@ -249,7 +249,7 @@ fun MapScreen(store: WaypointStore) {
                         if (measureMode) return false; selectedWaypoint = null; refreshOverlays(this@apply); return true
                     }
                     override fun longPressHelper(p: GeoPoint): Boolean {
-                        vibrate(ctx); val wp = Waypoint(name = "Waypoint ${waypoints.size + 1}", latitude = p.latitude, longitude = p.longitude)
+                        vibrate(ctx); val wp = Waypoint(name = "Waypoint ${waypoints.size + 1}".take(64), latitude = p.latitude, longitude = p.longitude)
                         waypoints = waypoints + wp; store.save(waypoints); refreshOverlays(this@apply); return true
                     }
                 }))
@@ -633,6 +633,7 @@ private fun ComposeCompass(rotation: Float, onClick: () -> Unit) {
 // ── Compose scale bar (minimal iOS style) ───────────────────────
 @Composable
 private fun ComposeScaleBar(metersPerPx: Float, imperial: Boolean = false, modifier: Modifier = Modifier) {
+    if (metersPerPx <= 0f) return
     val targetPx = 80f
     val rawMeters = metersPerPx * targetPx
 

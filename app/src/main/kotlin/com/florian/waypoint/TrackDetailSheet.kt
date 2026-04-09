@@ -27,7 +27,7 @@ fun TrackDetailSheet(track: Track, onDelete: () -> Unit, onDismiss: () -> Unit) 
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             // Header
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(10.dp).background(Color(android.graphics.Color.parseColor(track.color)), CircleShape))
+                Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(track.color)), CircleShape))
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(track.name, fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
             }
@@ -38,7 +38,7 @@ fun TrackDetailSheet(track: Track, onDelete: () -> Unit, onDismiss: () -> Unit) 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 StatItem("Distance", formatDistance(stats.distanceMeters).replace(" away", ""))
                 StatItem("Duration", formatDuration(stats.durationMs))
-                StatItem("Avg Speed", formatSpeed(stats.avgSpeedKmh))
+                StatItem("Avg Speed", formatTrackSpeed(stats.avgSpeedKmh))
             }
 
             if (stats.elevationGain != null || stats.elevationLoss != null) {
@@ -55,7 +55,7 @@ fun TrackDetailSheet(track: Track, onDelete: () -> Unit, onDismiss: () -> Unit) 
                 Spacer(modifier = Modifier.height(20.dp))
                 Text("Elevation", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
                 Spacer(modifier = Modifier.height(10.dp))
-                ElevationChart(altitudes = altitudes, color = Color(android.graphics.Color.parseColor(track.color)))
+                ElevationChart(altitudes = altitudes, color = Color(safeParseColor(track.color)))
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -90,7 +90,7 @@ private fun ElevationChart(altitudes: List<Double>, color: Color) {
         }
     } else altitudes
 
-    val minAlt = smoothed.min(); val maxAlt = smoothed.max()
+    val minAlt = smoothed.minOrNull() ?: return; val maxAlt = smoothed.maxOrNull() ?: return
     val range = (maxAlt - minAlt).coerceAtLeast(1.0)
 
     Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)) {

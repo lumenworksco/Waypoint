@@ -54,4 +54,4 @@ fun formatDuration(ms: Long): String {
     }
 }
 
-fun formatSpeed(kmh: Double): String = "%.1f km/h".format(kmh)
+fun formatTrackSpeed(kmh: Double): String = "%.1f km/h".format(kmh)

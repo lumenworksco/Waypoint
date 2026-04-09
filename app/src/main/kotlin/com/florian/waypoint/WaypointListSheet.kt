@@ -144,7 +144,7 @@ private fun WaypointRow(
         modifier = Modifier.fillMaxWidth().iosClickable(onClick).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.size(10.dp).background(Color(android.graphics.Color.parseColor(waypoint.color)), CircleShape))
+        Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(waypoint.color)), CircleShape))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(waypoint.name, fontWeight = FontWeight.W500, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
@@ -169,7 +169,7 @@ private fun TrackRow(track: Track, onClick: () -> Unit, onDelete: () -> Unit) {
         modifier = Modifier.fillMaxWidth().iosClickable(onClick).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.size(10.dp).background(Color(android.graphics.Color.parseColor(track.color)), CircleShape))
+        Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(track.color)), CircleShape))
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(track.name, fontWeight = FontWeight.W500, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)

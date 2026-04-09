@@ -139,7 +139,7 @@ fun WaypointCard(
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(10.dp).background(Color(android.graphics.Color.parseColor(waypoint.color)), CircleShape))
+                Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(waypoint.color)), CircleShape))
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(waypoint.name, fontWeight = FontWeight.W600, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
@@ -288,7 +288,7 @@ fun EditWaypointSheet(
                 for (hex in PresetColors) {
                     Box(
                         modifier = Modifier.size(34.dp)
-                            .background(Color(android.graphics.Color.parseColor(hex)), CircleShape)
+                            .background(Color(safeParseColor(hex)), CircleShape)
                             .then(if (hex.equals(selectedColor, true)) Modifier.border(2.5.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
                             .iosClickable { selectedColor = hex }
                     )
