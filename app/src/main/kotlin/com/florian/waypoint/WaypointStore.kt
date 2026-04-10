@@ -4,6 +4,13 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
+/**
+ * Persistent storage for all app data backed by a single SharedPreferences file.
+ *
+ * Data is serialized as JSON via Gson for waypoints and tracks, and as simple
+ * key-value strings for settings. Kept deliberately simple — no Room, no DAOs,
+ * no DI. The entire store is a thin wrapper around SharedPreferences.
+ */
 class WaypointStore(context: Context) {
     private val prefs = context.getSharedPreferences("waypoints", Context.MODE_PRIVATE)
     private val gson = Gson()

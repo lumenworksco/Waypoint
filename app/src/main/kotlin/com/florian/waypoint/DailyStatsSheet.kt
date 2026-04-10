@@ -21,8 +21,18 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.util.Calendar
 
+/**
+ * Bottom sheet showing ski statistics with two tabs — "Today" and "All Time".
+ *
+ * Today: runs, vertical, max speed, distance, time, on-snow percentage, first/last
+ * session times, a pace-of-day chart, and a list of today's sessions.
+ *
+ * All Time: lifetime totals, personal bests (max speed, best day vertical, most runs
+ * in a day), and a monthly breakdown (newest month first).
+ *
+ * Also shows a streak banner when the user has recorded tracks on consecutive days.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DailyStatsSheet(
@@ -47,7 +57,7 @@ fun DailyStatsSheet(
                 Text("Ski Stats", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                 if (tracks.size >= 2) {
                     Surface(
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(40.dp),
                         shape = androidx.compose.foundation.shape.CircleShape,
                         color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
@@ -329,20 +339,9 @@ private fun aggregate(tracks: List<Track>): Totals {
 }
 
 private fun filterToday(tracks: List<Track>): List<Track> {
-    val cal = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-    }
-    val startOfDay = cal.timeInMillis
-    return tracks.filter { it.startTime >= startOfDay }
+    val dayStart = startOfDay()
+    return tracks.filter { it.startTime >= dayStart }
 }
 
-private fun countUniqueDays(tracks: List<Track>): Int {
-    val days = mutableSetOf<Long>()
-    val cal = Calendar.getInstance()
-    for (t in tracks) {
-        cal.timeInMillis = t.startTime
-        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
-        days.add(cal.timeInMillis)
-    }
-    return days.size
-}
+private fun countUniqueDays(tracks: List<Track>): Int =
+    tracks.map { startOfDay(it.startTime) }.toSet().size

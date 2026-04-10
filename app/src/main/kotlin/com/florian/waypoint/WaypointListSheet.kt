@@ -19,6 +19,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.osmdroid.util.GeoPoint
 
+/**
+ * Bottom sheet that lists all waypoints (sorted by distance from the user) and recorded
+ * tracks, with a search field at the top. Tapping a waypoint flies the map to it and
+ * selects it; tapping a track opens the track detail sheet.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WaypointListSheet(

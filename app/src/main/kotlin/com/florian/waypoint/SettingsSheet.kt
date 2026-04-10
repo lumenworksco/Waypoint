@@ -18,6 +18,12 @@ import java.io.File
 
 enum class DistanceUnit(val label: String) { METRIC("Metric (km)"), IMPERIAL("Imperial (mi)") }
 
+/**
+ * Bottom sheet containing user-adjustable settings: distance units, default zoom,
+ * proximity alert radius, glare mode, keep-screen-on, and offline tile cache
+ * management. Also contains the About section with an easter-egg tap counter
+ * (tap the "Piste" title 7 times to reveal the legacy Waypoint dialog).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () -> Unit, onDismiss: () -> Unit) {

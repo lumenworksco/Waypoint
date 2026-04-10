@@ -65,6 +65,12 @@ fun IosTextField(
 }
 
 // ── Coordinate header ───────────────────────────────────────────
+/**
+ * Glassy pill shown at the top-left of the map. Displays the user's location
+ * (formatted according to [coordFormat]), altitude with place name, and current
+ * speed (when moving). Tap to cycle coordinate formats; long-press-equivalent
+ * tap opens the live speedometer sheet.
+ */
 @Composable
 fun CoordinateHeader(
     userLocation: GeoPoint?,
@@ -134,7 +140,12 @@ fun HintCapsule() {
     }
 }
 
-// ── Waypoint detail card ────────────────────────────────────────
+/**
+ * Glass card shown at the bottom of the map when a waypoint is selected.
+ * Displays the waypoint's color dot, name, notes, distance from the user,
+ * optional photo thumbnail, and action buttons (Edit, Delete, Close, Share,
+ * Navigate, Set/Unset Home).
+ */
 @Composable
 fun WaypointCard(
     waypoint: Waypoint,
@@ -225,6 +236,11 @@ fun DragHandle() {
 }
 
 // ── Edit waypoint bottom sheet ──────────────────────────────────
+/**
+ * Bottom sheet for editing a waypoint's name, notes, color (6 presets),
+ * ski-themed icon (12 presets), and an optional photo from the gallery.
+ * Uses an iOS-style nav bar layout (Cancel / title / Save).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditWaypointSheet(
@@ -334,6 +350,11 @@ fun EditWaypointSheet(
 }
 
 // ── Delete confirmation bottom sheet ────────────────────────────
+/**
+ * iOS-style confirm sheet with a full-width red "Delete" button and a gray
+ * "Cancel" button stacked vertically. Used to confirm waypoint deletion
+ * before the undo-toast path runs.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeleteConfirmSheet(waypointName: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {

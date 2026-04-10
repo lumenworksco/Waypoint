@@ -7,6 +7,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Track recording state holder.
+ *
+ * Collects [TrackPoint]s and air-time events while recording. Exposes its state as
+ * Compose [mutableStateOf] so the UI can observe recording progress directly.
+ * Supports pause/resume — paused state drops incoming points and air-time events
+ * but preserves the accumulated data. [stop] returns a complete [Track] with the
+ * biggest air time and air-event count baked in.
+ */
 class TrackRecorder {
     var isRecording by mutableStateOf(false)
         private set

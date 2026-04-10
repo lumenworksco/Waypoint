@@ -23,12 +23,8 @@ fun computePersonalBests(tracks: List<Track>): PersonalBests {
 
     // Group tracks by day and find the best day
     val dayGroups = mutableMapOf<Long, MutableList<Track>>()
-    val cal = java.util.Calendar.getInstance()
     for (t in tracks) {
-        cal.timeInMillis = t.startTime
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
-        cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
-        dayGroups.getOrPut(cal.timeInMillis) { mutableListOf() }.add(t)
+        dayGroups.getOrPut(startOfDay(t.startTime)) { mutableListOf() }.add(t)
     }
 
     var maxDayVert = 0.0

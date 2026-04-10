@@ -22,12 +22,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Bottom sheet that displays the details of a recorded track.
+ *
+ * Shows distance, duration, vertical, max speed, time on snow, elevation gain/loss,
+ * air time stats, an elevation profile chart, a run-by-run breakdown with difficulty
+ * colors, and a share button that produces a PNG stats card.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackDetailSheet(
     track: Track,
     imperial: Boolean,
-    onColorTrack: (Track) -> Unit = {},
     onDelete: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -46,7 +52,7 @@ fun TrackDetailSheet(
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(track.name, fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                 Surface(
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(40.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant
                 ) {

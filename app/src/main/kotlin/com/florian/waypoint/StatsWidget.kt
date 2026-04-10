@@ -5,7 +5,6 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.widget.RemoteViews
-import java.util.Calendar
 
 /**
  * Home-screen widget showing today's runs and vertical descended.
@@ -30,12 +29,8 @@ class StatsWidget : AppWidgetProvider() {
             val tracks = store.loadTracks()
             val imperial = store.loadSetting("distance_unit", "METRIC") == "IMPERIAL"
 
-            val startOfDay = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            }.timeInMillis
-
-            val today = tracks.filter { it.startTime >= startOfDay }
+            val dayStart = startOfDay()
+            val today = tracks.filter { it.startTime >= dayStart }
             var runs = 0
             var vert = 0.0
             for (t in today) {

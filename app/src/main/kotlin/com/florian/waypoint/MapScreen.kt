@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -50,8 +51,24 @@ import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.gestures.RotationGestureOverlay
 import java.io.File
 
-private val SelectedPin = Color(0xFFDC5028)
 
+/**
+ * The app's main — and only — screen.
+ *
+ * Hosts the osmdroid map via [AndroidView] with Compose overlays on top:
+ * compass, coordinate header, weather pill, home arrow pill, top-right button
+ * column (map style, waypoint list, daily stats, overflow menu), bottom-right
+ * controls (record, pause, zoom pill, recenter), the waypoint card, scale bar,
+ * achievement banner, undo toast, and the onboarding overlay on first launch.
+ *
+ * All state lives in [remember] blocks inside this function. Persistence is
+ * delegated to [store]. No ViewModel is used — the app is simple enough that
+ * Compose state + SharedPreferences is sufficient.
+ *
+ * @param store The persistent data store for waypoints, tracks, and settings.
+ * @param onToggleGlare Called when the user toggles glare mode in settings; the
+ *   caller should update the theme wrapping this composable.
+ */
 @Composable
 fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     val context = LocalContext.current
@@ -130,12 +147,11 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                     mapViewRef.value?.controller?.animateTo(gp)
                 }
 
-                // Proximity alerts
+                // Proximity alerts — vibrate when within the configured radius of a waypoint
                 val radius = store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0
                 if (radius > 0) {
                     val now = System.currentTimeMillis()
                     if (now - lastProximityAlert > 15000) { // max once per 15s
-                        val gp = GeoPoint(loc.latitude, loc.longitude)
                         for (wp in waypoints) {
                             if (distanceMeters(gp, GeoPoint(wp.latitude, wp.longitude)) < radius) {
                                 vibrate(context); lastProximityAlert = now; break
@@ -237,7 +253,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         if (trackRecorder.currentPoints.isNotEmpty()) {
             mapView.overlays.add(Polyline(mapView).apply {
                 setPoints(trackRecorder.currentPoints.map { GeoPoint(it.latitude, it.longitude) })
-                outlinePaint.color = safeParseColor("#FF2D55"); outlinePaint.strokeWidth = 3.5f * density
+                outlinePaint.color = RecordingTrackColor.toArgb(); outlinePaint.strokeWidth = 3.5f * density
                 outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND; outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND; outlinePaint.isAntiAlias = true
             })
         }
@@ -247,7 +263,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         for (cluster in clusters) {
             if (cluster.items.size == 1) {
                 val wp = cluster.items.first(); val isSelected = wp.id == selectedWaypoint?.id
-                val pinColor = if (isSelected) SelectedPin else Color(safeParseColor(wp.color))
+                val pinColor = if (isSelected) SelectedPinColor else Color(safeParseColor(wp.color))
                 mapView.overlays.add(Marker(mapView).apply {
                     position = GeoPoint(wp.latitude, wp.longitude); setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                     icon = createPinDrawable(context, pinColor, wp.name, wp.icon); id = wp.id; setInfoWindow(null)
@@ -365,7 +381,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             weather?.let { w ->
                 val wind = formatWind(w.windSpeedKmh, useImperial)
                 val tempStr = formatTemperature(w.temperatureC, useImperial)
-                val warn = w.windSpeedKmh >= 50.0
+                val warn = w.windSpeedKmh >= WindClosureThresholdKmh
                 WeatherPill(
                     text = "${weatherEmoji(w.weatherCode)} $tempStr \u00B7 $wind",
                     warning = warn,
@@ -546,13 +562,8 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                         if (t.points.size >= 2) {
                             tracks = tracks + t; store.saveTracks(tracks)
                             // Check achievements against today's totals
-                            val todayTracks = tracks.filter {
-                                val cal = java.util.Calendar.getInstance().apply {
-                                    set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
-                                    set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
-                                }
-                                it.startTime >= cal.timeInMillis
-                            }
+                            val dayStart = startOfDay()
+                            val todayTracks = tracks.filter { it.startTime >= dayStart }
                             var dayVert = 0.0; var dayRuns = 0; var dayDist = 0.0; var dayMax = 0.0
                             for (tt in todayTracks) {
                                 val s = computeTrackStats(tt.points)
@@ -819,11 +830,11 @@ private fun RecenterButton(enabled: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun RecordButton(isRecording: Boolean, isPaused: Boolean = false, onClick: () -> Unit) {
-    val bg = when { isRecording && isPaused -> Color(0xFFFF2D55).copy(alpha = 0.45f); isRecording -> Color(0xFFFF2D55); else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.88f) }
+    val bg = when { isRecording && isPaused -> RecordingTrackColor.copy(alpha = 0.45f); isRecording -> RecordingTrackColor; else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.88f) }
     Surface(modifier = Modifier.size(50.dp), shape = CircleShape, color = bg, shadowElevation = 4.dp) {
         Box(modifier = Modifier.fillMaxSize().iosClickable(onClick), contentAlignment = Alignment.Center) {
             if (isRecording) Icon(Icons.Filled.Stop, "Stop", tint = Color.White, modifier = Modifier.size(22.dp))
-            else Icon(Icons.Filled.FiberManualRecord, "Record", tint = Color(0xFFFF2D55), modifier = Modifier.size(18.dp))
+            else Icon(Icons.Filled.FiberManualRecord, "Record", tint = RecordingTrackColor, modifier = Modifier.size(18.dp))
         }
     }
 }

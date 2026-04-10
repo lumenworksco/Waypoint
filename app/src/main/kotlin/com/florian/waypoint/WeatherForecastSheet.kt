@@ -14,6 +14,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Bottom sheet showing current weather conditions and an hourly forecast.
+ * Data comes from Open-Meteo (free, no API key). Displays temperature, wind speed,
+ * a high-wind warning when appropriate, a 24-hour scrollable forecast, and the total
+ * expected snowfall in the next 24 hours.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherForecastSheet(forecast: Forecast?, imperial: Boolean, placeName: String?, onDismiss: () -> Unit) {

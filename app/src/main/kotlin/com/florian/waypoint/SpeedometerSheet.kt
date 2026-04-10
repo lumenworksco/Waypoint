@@ -14,6 +14,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Live dashboard sheet showing the user's current speed as a huge number,
+ * plus altitude, vertical descended, and run count for the current recording.
+ * Opened by tapping the coordinate header on the map screen.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SpeedometerSheet(
@@ -36,7 +41,7 @@ fun SpeedometerSheet(
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Live Dashboard", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                 Surface(
-                    modifier = Modifier.size(32.dp),
+                    modifier = Modifier.size(40.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceVariant
                 ) {

@@ -18,6 +18,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Bottom sheet for side-by-side comparison of two recorded tracks.
+ * User picks two tracks from dropdowns; the sheet displays a row-by-row comparison
+ * (distance, duration, vertical, runs, max/avg speed) with the winner of each
+ * metric highlighted in the primary color.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrackCompareSheet(tracks: List<Track>, imperial: Boolean, onDismiss: () -> Unit) {

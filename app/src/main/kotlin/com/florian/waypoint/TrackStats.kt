@@ -255,16 +255,9 @@ fun difficultyColor(d: RunDifficulty): Int = when (d) {
  */
 fun computeStreak(tracks: List<Track>): Int {
     if (tracks.isEmpty()) return 0
-    val cal = java.util.Calendar.getInstance()
-    fun startOfDay(ms: Long): Long {
-        cal.timeInMillis = ms
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
-        cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
-        return cal.timeInMillis
-    }
     val days = tracks.map { startOfDay(it.startTime) }.toSet()
     var count = 0
-    var day = startOfDay(System.currentTimeMillis())
+    var day = startOfDay()
     while (day in days) {
         count++
         day -= 86_400_000L

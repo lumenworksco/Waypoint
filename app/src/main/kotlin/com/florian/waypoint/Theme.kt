@@ -17,6 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 
+// ── App-wide constants ──────────────────────────────────────────
+/** Color for the pin of the currently-selected waypoint on the map. */
+val SelectedPinColor = Color(0xFFDC5028)
+
+/** Color for the polyline of a track currently being recorded. */
+val RecordingTrackColor = Color(0xFFFF2D55)
+
+/** Wind speed (km/h) at which a "lifts may close" warning is shown in the weather pill. */
+const val WindClosureThresholdKmh = 50.0
+
 val LightColors = lightColorScheme(
     primary = Color(0xFF007AFF),
     onPrimary = Color.White,
@@ -57,6 +67,14 @@ val GlareColors = lightColorScheme(
 /** Indicates whether high-contrast glare mode is enabled. */
 val LocalGlareMode = compositionLocalOf { false }
 
+/**
+ * Root theme wrapper for the app. Applies one of three color schemes:
+ *  - [GlareColors] when [glareMode] is on (high-contrast UI for bright snow)
+ *  - [DarkColors] when the system is in dark mode
+ *  - [LightColors] otherwise
+ *
+ * Also provides [LocalGlareMode] so nested composables can query the current mode.
+ */
 @Composable
 fun WaypointTheme(glareMode: Boolean = false, content: @Composable () -> Unit) {
     val scheme = when {
@@ -69,7 +87,11 @@ fun WaypointTheme(glareMode: Boolean = false, content: @Composable () -> Unit) {
     }
 }
 
-/** iOS-style clickable: opacity fades to 0.6 on press instead of Material ripple. */
+/**
+ * iOS-style clickable modifier. Replaces Material's ripple effect with a simple
+ * opacity fade (1.0 → 0.6) on press, matching Apple's interaction language.
+ * Use everywhere in place of [Modifier.clickable] or Material buttons' `onClick`.
+ */
 @Composable
 fun Modifier.iosClickable(onClick: () -> Unit): Modifier {
     val interactionSource = remember { MutableInteractionSource() }
