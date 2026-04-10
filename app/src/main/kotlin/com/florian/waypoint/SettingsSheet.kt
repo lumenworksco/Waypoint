@@ -172,51 +172,58 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
         }
     }
 
-    // ── Easter egg dialog ───────────────────────────────────────
+    // ── Easter egg dialog (rendered in its own window layer) ────
     if (showEasterEgg) {
-        ModalBottomSheet(
+        androidx.compose.ui.window.Dialog(
             onDismissRequest = { showEasterEgg = false },
-            dragHandle = { DragHandle() }
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 12.dp,
+                modifier = Modifier.padding(horizontal = 32.dp).fillMaxWidth()
             ) {
-                Text("\uD83D\uDDFA\uFE0F", fontSize = 56.sp)
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    "Formerly known as Waypoint",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.W700,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "This app began as a simple waypoint tracker on OpenStreetMap, " +
-                    "built somewhere in the Alps with too much free time and a love for fresh powder. " +
-                    "Thanks for being here since the beginning.",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.outline,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 20.sp
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize().iosClickable { showEasterEgg = false },
-                        contentAlignment = Alignment.Center
+                    Text("\uD83D\uDDFA\uFE0F", fontSize = 56.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Formerly known as Waypoint",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.W700,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "This app began as a simple waypoint tracker on OpenStreetMap, " +
+                        "built somewhere in the Alps with too much free time and a love for fresh powder. " +
+                        "Thanks for being here since the beginning.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.outline,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary
                     ) {
-                        Text(
-                            "See you on the mountain",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.W600,
-                            fontSize = 15.sp
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxSize().iosClickable { showEasterEgg = false },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "See you on the mountain",
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                fontWeight = FontWeight.W600,
+                                fontSize = 15.sp
+                            )
+                        }
                     }
                 }
             }
