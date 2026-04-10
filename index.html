@@ -25,8 +25,9 @@
     <p>Piste is an Android ski companion app developed by Florian Braun (Lumen Studios). This Privacy Policy explains how the app handles your data.</p>
 
     <h2>Data We Collect</h2>
-    <p>Piste accesses your device's location (GPS) to display your position on the map, calculate distances to your saved waypoints, record tracks, and fetch local weather. Location data is used only within the app. Your approximate location is sent to Open-Meteo to fetch current weather conditions — no other personal data is transmitted.</p>
+    <p>Piste accesses your device's location (GPS) to display your position on the map, calculate distances to your saved waypoints, record tracks, and fetch local weather. Location data is used only within the app. Your approximate location is sent to Open-Meteo (weather) and OpenStreetMap Nominatim (resort/place name lookup) — no other personal data is transmitted.</p>
     <p>Photos you attach to waypoints are stored locally on your device. They are never uploaded or shared unless you explicitly choose to do so.</p>
+    <p>When you record a track, a foreground service runs with a persistent notification so that the recording continues while the app is in the background or the phone is locked.</p>
 
     <h2>Data Storage</h2>
     <p>Waypoints, tracks, settings, and photos are stored locally on your device only. We do not use any cloud storage, databases, or external servers. Your data never leaves your device unless you explicitly export it (e.g., GPX export or backup).</p>
@@ -40,7 +41,8 @@
         <li><strong>CartoDB</strong> – dark mode map tiles. See the <a href="https://carto.com/privacy/" target="_blank">CARTO Privacy Policy</a>.</li>
         <li><strong>Esri</strong> – satellite imagery tiles. See the <a href="https://www.esri.com/en-us/privacy/overview" target="_blank">Esri Privacy Policy</a>.</li>
         <li><strong>Google Play Services Location</strong> – used to determine your device's position. See the <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a>.</li>
-        <li><strong>Open-Meteo</strong> – free weather API. Your approximate location is sent to fetch current conditions. See the <a href="https://open-meteo.com/en/terms" target="_blank">Open-Meteo Terms</a>.</li>
+        <li><strong>Open-Meteo</strong> – free weather API. Your approximate location is sent to fetch current conditions and hourly forecasts. See the <a href="https://open-meteo.com/en/terms" target="_blank">Open-Meteo Terms</a>.</li>
+        <li><strong>OpenStreetMap Nominatim</strong> – used to reverse-geocode your location into a nearby place or resort name to display in the coordinate header. See the <a href="https://operations.osmfoundation.org/policies/nominatim/" target="_blank">Nominatim Usage Policy</a>.</li>
     </ul>
     <p>When loading map tiles or weather data, your device makes network requests that may include your IP address as part of standard internet communication.</p>
 
