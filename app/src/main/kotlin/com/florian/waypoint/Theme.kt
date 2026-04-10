@@ -9,6 +9,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -39,12 +41,32 @@ val DarkColors = darkColorScheme(
     outlineVariant = Color(0xFF3A3A3C),
 )
 
+/** High-contrast "glare mode" — bold solid colors for bright snow conditions. */
+val GlareColors = lightColorScheme(
+    primary = Color(0xFF000000),
+    onPrimary = Color.White,
+    error = Color(0xFFFF0000),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF000000),
+    surfaceVariant = Color(0xFFF0F0F0),
+    onSurfaceVariant = Color(0xFF000000),
+    outline = Color(0xFF000000),
+    outlineVariant = Color(0xFF808080),
+)
+
+/** Indicates whether high-contrast glare mode is enabled. */
+val LocalGlareMode = compositionLocalOf { false }
+
 @Composable
-fun WaypointTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
-        content = content
-    )
+fun WaypointTheme(glareMode: Boolean = false, content: @Composable () -> Unit) {
+    val scheme = when {
+        glareMode -> GlareColors
+        isSystemInDarkTheme() -> DarkColors
+        else -> LightColors
+    }
+    CompositionLocalProvider(LocalGlareMode provides glareMode) {
+        MaterialTheme(colorScheme = scheme, content = content)
+    }
 }
 
 /** iOS-style clickable: opacity fades to 0.6 on press instead of Material ripple. */

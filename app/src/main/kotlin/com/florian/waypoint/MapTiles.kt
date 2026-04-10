@@ -7,8 +7,10 @@ import org.osmdroid.util.MapTileIndex
 
 enum class MapStyle(val label: String) {
     STANDARD("Standard"),
-    DARK("Dark"),
+    PISTE("Piste"),
+    TERRAIN("Terrain"),
     SATELLITE("Satellite"),
+    DARK("Dark"),
 }
 
 val CartoDark = XYTileSource(
@@ -34,8 +36,28 @@ val EsriSatellite = object : OnlineTileSourceBase(
     }
 }
 
+/** OpenSnowMap — OSM-based piste map with ski runs, lifts, and difficulty colors. */
+val OpenSnowMap = XYTileSource(
+    "OpenSnowMap",
+    0, 18, 256, ".png",
+    arrayOf("https://tiles.opensnowmap.org/pistes/")
+)
+
+/** OpenTopoMap — topographic map with contour lines, useful for backcountry. */
+val OpenTopoMap = XYTileSource(
+    "OpenTopoMap",
+    0, 17, 256, ".png",
+    arrayOf(
+        "https://a.tile.opentopomap.org/",
+        "https://b.tile.opentopomap.org/",
+        "https://c.tile.opentopomap.org/",
+    )
+)
+
 fun MapStyle.tileSource() = when (this) {
     MapStyle.STANDARD -> TileSourceFactory.MAPNIK
-    MapStyle.DARK -> CartoDark
+    MapStyle.PISTE -> OpenSnowMap
+    MapStyle.TERRAIN -> OpenTopoMap
     MapStyle.SATELLITE -> EsriSatellite
+    MapStyle.DARK -> CartoDark
 }

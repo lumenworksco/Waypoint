@@ -59,7 +59,4 @@ dependencies {
 
     // Gson
     implementation("com.google.code.gson:gson:2.13.1")
-
-    // QR code generation
-    implementation("com.google.zxing:core:3.5.3")
 }

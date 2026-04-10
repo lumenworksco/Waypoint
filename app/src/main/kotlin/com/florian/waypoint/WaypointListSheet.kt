@@ -7,7 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,22 +28,22 @@ fun WaypointListSheet(
     onSelectWaypoint: (Waypoint) -> Unit,
     onSelectTrack: (Track) -> Unit,
     onDeleteTrack: (Track) -> Unit,
-    onReorderWaypoints: (List<Waypoint>) -> Unit,
     onDismiss: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    var manualSort by remember { mutableStateOf(false) }
 
-    val sorted = if (manualSort) waypoints
-    else if (userLocation != null) waypoints.sortedBy { distanceMeters(userLocation, GeoPoint(it.latitude, it.longitude)) }
-    else waypoints.sortedBy { it.name }
+    val sorted = if (userLocation != null) {
+        waypoints.sortedBy { distanceMeters(userLocation, GeoPoint(it.latitude, it.longitude)) }
+    } else {
+        waypoints.sortedBy { it.name }
+    }
 
     val filtered = if (searchQuery.isBlank()) sorted else sorted.filter {
         it.name.contains(searchQuery, ignoreCase = true) || it.notes.contains(searchQuery, ignoreCase = true)
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
-        // Search bar (iOS style)
+        // Search bar
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp)) {
             TextField(
                 value = searchQuery,
@@ -72,22 +73,12 @@ fun WaypointListSheet(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            // Header
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 6.dp)) {
-                    Text(
-                        "${filtered.size} waypoint${if (filtered.size != 1) "s" else ""}",
-                        fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (waypoints.size > 1 && searchQuery.isBlank()) {
-                        Text(
-                            if (manualSort) "Auto sort" else "Manual order",
-                            fontSize = 13.sp, color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.iosClickable { manualSort = !manualSort }.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
+                Text(
+                    "${filtered.size} waypoint${if (filtered.size != 1) "s" else ""}",
+                    fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(vertical = 6.dp)
+                )
             }
 
             if (filtered.isEmpty() && searchQuery.isNotBlank()) {
@@ -95,30 +86,13 @@ fun WaypointListSheet(
             }
 
             items(filtered, key = { it.id }) { wp ->
-                val idx = waypoints.indexOf(wp)
                 WaypointRow(
                     waypoint = wp,
-                    distance = if (!manualSort) userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(wp.latitude, wp.longitude))) } else null,
-                    showReorder = manualSort && searchQuery.isBlank(),
-                    canMoveUp = manualSort && idx > 0,
-                    canMoveDown = manualSort && idx < waypoints.size - 1,
-                    onMoveUp = {
-                        if (idx > 0) {
-                            val list = waypoints.toMutableList(); list[idx] = list[idx - 1].also { list[idx - 1] = list[idx] }
-                            onReorderWaypoints(list)
-                        }
-                    },
-                    onMoveDown = {
-                        if (idx < waypoints.size - 1) {
-                            val list = waypoints.toMutableList(); list[idx] = list[idx + 1].also { list[idx + 1] = list[idx] }
-                            onReorderWaypoints(list)
-                        }
-                    },
+                    distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(wp.latitude, wp.longitude))) },
                     onClick = { onSelectWaypoint(wp) }
                 )
             }
 
-            // Tracks section
             if (tracks.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -135,11 +109,7 @@ fun WaypointListSheet(
 }
 
 @Composable
-private fun WaypointRow(
-    waypoint: Waypoint, distance: String?, showReorder: Boolean,
-    canMoveUp: Boolean, canMoveDown: Boolean,
-    onMoveUp: () -> Unit, onMoveDown: () -> Unit, onClick: () -> Unit
-) {
+private fun WaypointRow(waypoint: Waypoint, distance: String?, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().iosClickable(onClick).padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -151,14 +121,6 @@ private fun WaypointRow(
             if (waypoint.notes.isNotBlank()) Text(waypoint.notes, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
         }
         if (distance != null) Text(distance, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
-        if (showReorder) {
-            Icon(Icons.Filled.KeyboardArrowUp, "Up",
-                tint = if (canMoveUp) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.size(22.dp).iosClickable { if (canMoveUp) onMoveUp() })
-            Icon(Icons.Filled.KeyboardArrowDown, "Down",
-                tint = if (canMoveDown) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.size(22.dp).iosClickable { if (canMoveDown) onMoveDown() })
-        }
     }
 }
 

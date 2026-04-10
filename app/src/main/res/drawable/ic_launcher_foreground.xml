@@ -4,24 +4,24 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Minimal pin: thin outline, no fill -->
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="2.8"
-        android:fillColor="@android:color/transparent"
-        android:pathData="
-            M54,76
-            C54,76 38,58 38,47
-            C38,38.16 45.16,31 54,31
-            C62.84,31 70,38.16 70,47
-            C70,58 54,76 54,76
-            Z" />
-    <!-- Small solid dot -->
+    <!-- Two-peak mountain silhouette centered in the adaptive icon safe zone -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="
-            M54,47
-            m-4,0
-            a4,4 0 1,1 8,0
-            a4,4 0 1,1 -8,0" />
+            M 22,80
+            L 44,38
+            L 58,58
+            L 72,32
+            L 92,80
+            Z" />
+    <!-- Snow cap on the taller (right) peak -->
+    <path
+        android:fillColor="#E8F4FF"
+        android:pathData="
+            M 66,42
+            L 72,32
+            L 78,42
+            L 73,44
+            L 69,42
+            Z" />
 </vector>

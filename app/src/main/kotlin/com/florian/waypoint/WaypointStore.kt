@@ -36,16 +36,6 @@ class WaypointStore(context: Context) {
     fun loadCoordFormat(): String = prefs.getString("coord_format", "DECIMAL") ?: "DECIMAL"
     fun saveCoordFormat(format: String) { prefs.edit().putString("coord_format", format).apply() }
 
-    fun loadWaypointOrder(): List<String> {
-        val json = prefs.getString("waypoint_order", null) ?: return emptyList()
-        val type = object : TypeToken<List<String>>() {}.type
-        return gson.fromJson(json, type)
-    }
-
-    fun saveWaypointOrder(ids: List<String>) {
-        prefs.edit().putString("waypoint_order", gson.toJson(ids)).apply()
-    }
-
     // Generic settings
     fun loadSetting(key: String, default: String): String = prefs.getString("setting_$key", default) ?: default
     fun saveSetting(key: String, value: String) { prefs.edit().putString("setting_$key", value).apply() }

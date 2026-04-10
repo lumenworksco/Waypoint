@@ -17,7 +17,7 @@ enum class DistanceUnit(val label: String) { METRIC("Metric (km)"), IMPERIAL("Im
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsSheet(store: WaypointStore, onDismiss: () -> Unit) {
+fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var unit by remember { mutableStateOf(
         runCatching { DistanceUnit.valueOf(store.loadSetting("distance_unit", "METRIC")) }.getOrDefault(DistanceUnit.METRIC)
@@ -87,6 +87,19 @@ fun SettingsSheet(store: WaypointStore, onDismiss: () -> Unit) {
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Glare mode
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Glare Mode", fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onSurface)
+                    Text("High-contrast UI for bright snow", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                }
+                Switch(checked = glareMode, onCheckedChange = { onToggleGlare() })
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(16.dp))
 

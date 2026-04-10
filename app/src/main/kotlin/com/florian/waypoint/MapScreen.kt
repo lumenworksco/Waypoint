@@ -53,9 +53,10 @@ import java.io.File
 private val SelectedPin = Color(0xFFDC5028)
 
 @Composable
-fun MapScreen(store: WaypointStore) {
+fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val glareMode = LocalGlareMode.current
 
     // ── Core state ──────────────────────────────────────────────
     var waypoints by remember { mutableStateOf(store.load()) }
@@ -70,26 +71,25 @@ fun MapScreen(store: WaypointStore) {
     var showWaypointList by remember { mutableStateOf(false) }
     var showStyleMenu by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
+    var showDailyStats by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableStateOf<Float?>(null) }
     var mapStyle by remember { mutableStateOf(runCatching { MapStyle.valueOf(store.loadMapStyle()) }.getOrDefault(MapStyle.STANDARD)) }
     var coordFormat by remember { mutableStateOf(runCatching { CoordFormat.valueOf(store.loadCoordFormat()) }.getOrDefault(CoordFormat.DECIMAL)) }
+
+    // Weather
+    var weather by remember { mutableStateOf<WeatherData?>(null) }
+    var lastWeatherFetch by remember { mutableStateOf(0L) }
 
     // Delete flow
     var pendingDelete by remember { mutableStateOf<Waypoint?>(null) }
     var lastDeleted by remember { mutableStateOf<Waypoint?>(null) }
     var showUndoToast by remember { mutableStateOf(false) }
 
-    // Measure mode
-    var measureMode by remember { mutableStateOf(false) }
-    var measureResult by remember { mutableStateOf<String?>(null) }
-    val measureOverlayRef = remember { mutableStateOf<MeasureOverlay?>(null) }
-
     // Track detail
     var selectedTrack by remember { mutableStateOf<Track?>(null) }
 
     // Settings (re-read from prefs each recomposition so changes take effect immediately)
     var showSettings by remember { mutableStateOf(false) }
-    var showImportLink by remember { mutableStateOf(false) }
     var settingsVersion by remember { mutableIntStateOf(0) } // bump to force re-read
     val useImperial = remember(settingsVersion) { store.loadSetting("distance_unit", "METRIC") == "IMPERIAL" }
     var lastProximityAlert by remember { mutableStateOf(0L) }
@@ -235,6 +235,19 @@ fun MapScreen(store: WaypointStore) {
     LaunchedEffect(waypoints, selectedWaypoint, tracks) { mapViewRef.value?.let { refreshOverlays(it) } }
     LaunchedEffect(mapStyle) { mapViewRef.value?.let { it.setTileSource(mapStyle.tileSource()); it.invalidate() } }
 
+    // Weather — fetch when location is known, refresh every 15 minutes
+    LaunchedEffect(userLocation) {
+        val loc = userLocation ?: return@LaunchedEffect
+        val now = System.currentTimeMillis()
+        if (now - lastWeatherFetch > 15 * 60_000) {
+            lastWeatherFetch = now
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val w = fetchWeather(loc.latitude, loc.longitude)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { weather = w }
+            }
+        }
+    }
+
     // ── UI ──────────────────────────────────────────────────────
     Box(modifier = Modifier.fillMaxSize()) {
         // Map
@@ -246,7 +259,7 @@ fun MapScreen(store: WaypointStore) {
                 minZoomLevel = 3.0; maxZoomLevel = 20.0; controller.setZoom(defZoom); controller.setCenter(GeoPoint(51.5074, -0.1278))
                 overlays.add(0, MapEventsOverlay(object : MapEventsReceiver {
                     override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                        if (measureMode) return false; selectedWaypoint = null; refreshOverlays(this@apply); return true
+                        selectedWaypoint = null; refreshOverlays(this@apply); return true
                     }
                     override fun longPressHelper(p: GeoPoint): Boolean {
                         vibrate(ctx); val wp = Waypoint(name = "Waypoint ${waypoints.size + 1}".take(64), latitude = p.latitude, longitude = p.longitude)
@@ -285,6 +298,11 @@ fun MapScreen(store: WaypointStore) {
                 speedText = formatSpeed(currentSpeed, useImperial),
                 onToggleFormat = { coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]; store.saveCoordFormat(coordFormat.name) },
             )
+            weather?.let { w ->
+                WeatherPill(
+                    text = "${weatherEmoji(w.weatherCode)} ${formatTemperature(w.temperatureC, useImperial)}"
+                )
+            }
         }
 
         // ── Top-right: 3 buttons ────────────────────────────────
@@ -308,6 +326,7 @@ fun MapScreen(store: WaypointStore) {
                 }
             }
             MapButton(Icons.AutoMirrored.Filled.List, "Waypoints") { showWaypointList = true }
+            MapButton(Icons.Filled.Terrain, "Today's Stats") { showDailyStats = true }
             Box {
                 MapButton(Icons.Filled.MoreVert, "More") { showOverflowMenu = true }
                 DropdownMenu(expanded = showOverflowMenu, onDismissRequest = { showOverflowMenu = false },
@@ -321,11 +340,6 @@ fun MapScreen(store: WaypointStore) {
                     DropdownMenuItem(text = { Text("Backup all data", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; backupExportLauncher.launch("waypoint-backup.zip") })
                     DropdownMenuItem(text = { Text("Restore backup", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; backupImportLauncher.launch(arrayOf("*/*")) })
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 12.dp))
-                    DropdownMenuItem(text = { Text(if (measureMode) "Stop measuring" else "Measure distance", fontSize = 15.sp) }, onClick = {
-                        showOverflowMenu = false; measureMode = !measureMode
-                        if (measureMode) { mapViewRef.value?.let { mv -> val ov = MeasureOverlay { measureResult = it }; ov.activate(); measureOverlayRef.value = ov; mv.overlays.add(ov); mv.invalidate() } }
-                        else { measureOverlayRef.value?.let { mapViewRef.value?.overlays?.remove(it); mapViewRef.value?.invalidate() }; measureOverlayRef.value = null; measureResult = null }
-                    })
                     DropdownMenuItem(text = { Text("Download area", fontSize = 15.sp) }, onClick = {
                         showOverflowMenu = false; val map = mapViewRef.value ?: return@DropdownMenuItem
                         val ts = map.tileProvider.tileSource; if (ts !is OnlineTileSourceBase) return@DropdownMenuItem
@@ -348,7 +362,6 @@ fun MapScreen(store: WaypointStore) {
                         }.start()
                     })
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 12.dp))
-                    DropdownMenuItem(text = { Text("Import from link", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; showImportLink = true })
                     DropdownMenuItem(text = { Text("Settings", fontSize = 15.sp) }, onClick = { showOverflowMenu = false; showSettings = true })
                 }
             }
@@ -501,59 +514,42 @@ fun MapScreen(store: WaypointStore) {
             onSelectWaypoint = { wp -> selectedWaypoint = wp; mapViewRef.value?.controller?.animateTo(GeoPoint(wp.latitude, wp.longitude), 18.0, 800); showWaypointList = false },
             onSelectTrack = { track -> selectedTrack = track; if (track.points.isNotEmpty()) { val c = GeoPoint(track.points.sumOf { it.latitude } / track.points.size, track.points.sumOf { it.longitude } / track.points.size); mapViewRef.value?.controller?.animateTo(c, 15.0, 800) }; showWaypointList = false },
             onDeleteTrack = { track -> tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks) },
-            onReorderWaypoints = { r -> waypoints = r; store.save(r); store.saveWaypointOrder(r.map { it.id }) },
             onDismiss = { showWaypointList = false })
     }
 
     selectedTrack?.let { track ->
-        TrackDetailSheet(track = track, onDelete = { tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks); selectedTrack = null }, onDismiss = { selectedTrack = null })
+        TrackDetailSheet(track = track, imperial = useImperial, onDelete = { tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks); selectedTrack = null }, onDismiss = { selectedTrack = null })
     }
 
     if (showSettings) {
-        SettingsSheet(store = store, onDismiss = { showSettings = false; settingsVersion++ })
+        SettingsSheet(
+            store = store,
+            glareMode = glareMode,
+            onToggleGlare = onToggleGlare,
+            onDismiss = { showSettings = false; settingsVersion++ }
+        )
     }
 
-    if (showImportLink) {
-        ImportLinkDialog(
-            onImport = { lat, lon, name ->
-                val wp = Waypoint(name = name, latitude = lat, longitude = lon)
-                waypoints = waypoints + wp; store.save(waypoints)
-                mapViewRef.value?.controller?.animateTo(GeoPoint(lat, lon), 16.0, 800)
-                showImportLink = false
-            },
-            onDismiss = { showImportLink = false }
-        )
+    if (showDailyStats) {
+        DailyStatsSheet(tracks = tracks, imperial = useImperial, onDismiss = { showDailyStats = false })
     }
 }
 
-// ── Import from link dialog ─────────────────────────────────────
-@OptIn(ExperimentalMaterial3Api::class)
+// ── Weather pill ────────────────────────────────────────────────
 @Composable
-private fun ImportLinkDialog(onImport: (lat: Double, lon: Double, name: String) -> Unit, onDismiss: () -> Unit) {
-    var link by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf(false) }
-
-    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Cancel", color = MaterialTheme.colorScheme.primary, fontSize = 15.sp, modifier = Modifier.iosClickable(onDismiss))
-                Spacer(modifier = Modifier.weight(1f))
-                Text("Import from Link", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
-                Spacer(modifier = Modifier.weight(1f))
-                Text("Import", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.W600, fontSize = 15.sp,
-                    modifier = Modifier.iosClickable {
-                        val coords = parseGoogleMapsLink(link)
-                        if (coords != null) onImport(coords.first, coords.second, "Imported")
-                        else error = true
-                    })
-            }
-            Spacer(modifier = Modifier.height(20.dp))
-            IosTextField(value = link, onValueChange = { link = it; error = false }, placeholder = "Paste a Google Maps link")
-            if (error) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Could not find coordinates in this link", fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
-            }
-        }
+private fun WeatherPill(text: String) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        shadowElevation = 4.dp
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.W500,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

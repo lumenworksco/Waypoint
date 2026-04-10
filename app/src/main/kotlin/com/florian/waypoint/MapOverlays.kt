@@ -152,25 +152,6 @@ fun formatSpeed(speedMps: Float, imperial: Boolean = false): String? {
     else "%.1f km/h".format(speedMps * 3.6)
 }
 
-/** Parse a Google Maps shared URL into lat/lon, or null. */
-fun parseGoogleMapsLink(text: String): Pair<Double, Double>? {
-    // Patterns: ?q=lat,lon  or @lat,lon  or /place/lat,lon
-    val patterns = listOf(
-        Regex("""[?&]q=(-?\d+\.?\d*),\s*(-?\d+\.?\d*)"""),
-        Regex("""@(-?\d+\.?\d*),\s*(-?\d+\.?\d*)"""),
-        Regex("""/place/(-?\d+\.?\d*),\s*(-?\d+\.?\d*)"""),
-        Regex("""maps\?.*ll=(-?\d+\.?\d*),\s*(-?\d+\.?\d*)"""),
-    )
-    for (p in patterns) {
-        val m = p.find(text)
-        if (m != null) {
-            val lat = m.groupValues[1].toDoubleOrNull() ?: continue
-            val lon = m.groupValues[2].toDoubleOrNull() ?: continue
-            if (lat in -90.0..90.0 && lon in -180.0..180.0) return lat to lon
-        }
-    }
-    return null
-}
 
 fun vibrate(context: Context, light: Boolean = false) {
     @Suppress("DEPRECATION")

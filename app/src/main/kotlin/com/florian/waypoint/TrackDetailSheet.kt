@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackDetailSheet(track: Track, onDelete: () -> Unit, onDismiss: () -> Unit) {
+fun TrackDetailSheet(track: Track, imperial: Boolean, onDelete: () -> Unit, onDismiss: () -> Unit) {
     val stats = remember(track) { computeTrackStats(track.points) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
@@ -34,18 +34,28 @@ fun TrackDetailSheet(track: Track, onDelete: () -> Unit, onDismiss: () -> Unit) 
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Stats
+            // Primary stats
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                StatItem("Distance", formatDistance(stats.distanceMeters).replace(" away", ""))
+                StatItem("Distance", formatDistance(stats.distanceMeters, imperial).replace(" away", ""))
                 StatItem("Duration", formatDuration(stats.durationMs))
                 StatItem("Avg Speed", formatTrackSpeed(stats.avgSpeedKmh))
             }
 
-            if (stats.elevationGain != null || stats.elevationLoss != null) {
-                Spacer(modifier = Modifier.height(12.dp))
+            // Ski stats — vertical + max speed + runs
+            if (stats.verticalDescended != null || stats.maxSpeedKmh > 0 || stats.runCount > 0) {
+                Spacer(modifier = Modifier.height(14.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    stats.elevationGain?.let { StatItem("Gain", "+${it.toInt()} m") }
-                    stats.elevationLoss?.let { StatItem("Loss", "-${it.toInt()} m") }
+                    stats.verticalDescended?.let { StatItem("Vertical", formatVertical(it, imperial)) }
+                    if (stats.maxSpeedKmh > 0) StatItem("Max Speed", formatTrackSpeed(stats.maxSpeedKmh))
+                    if (stats.runCount > 0) StatItem("Runs", stats.runCount.toString())
+                }
+            }
+
+            if (stats.elevationGain != null || stats.elevationLoss != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    stats.elevationGain?.let { StatItem("Gain", "+${formatVertical(it, imperial)}") }
+                    stats.elevationLoss?.let { StatItem("Loss", "-${formatVertical(it, imperial)}") }
                 }
             }
 

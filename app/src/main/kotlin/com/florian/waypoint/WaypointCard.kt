@@ -130,7 +130,6 @@ fun WaypointCard(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    var showQrSheet by remember { mutableStateOf(false) }
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -170,14 +169,8 @@ fun WaypointCard(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IosTextAction("Share") { shareWaypoint(context, waypoint) }
                 IosTextAction("Navigate") { navigateToWaypoint(context, waypoint) }
-                IosTextAction("QR Code") { showQrSheet = true }
             }
         }
-    }
-
-    // QR bottom sheet
-    if (showQrSheet) {
-        QrCodeSheet(waypoint = waypoint, onDismiss = { showQrSheet = false })
     }
 }
 
@@ -205,26 +198,6 @@ fun IosIconButton(icon: ImageVector, bgColor: Color, iconColor: Color, desc: Str
     }
 }
 
-// ── QR Code bottom sheet ────────────────────────────────────────
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun QrCodeSheet(waypoint: Waypoint, onDismiss: () -> Unit) {
-    val geoUri = "geo:${waypoint.latitude},${waypoint.longitude}?q=${waypoint.latitude},${waypoint.longitude}(${Uri.encode(waypoint.name)})"
-    val qrBitmap = remember(waypoint.id) { generateQrBitmap(geoUri) }
-
-    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 32.dp)
-        ) {
-            Text(waypoint.name, fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(modifier = Modifier.height(16.dp))
-            Image(bitmap = qrBitmap.asImageBitmap(), contentDescription = "QR", modifier = Modifier.size(200.dp))
-            Spacer(modifier = Modifier.height(12.dp))
-            Text("Scan to open location", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
-        }
-    }
-}
 
 // ── Drag handle for sheets ──────────────────────────────────────
 @Composable
