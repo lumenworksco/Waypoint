@@ -14,12 +14,15 @@ class TrackRecorder {
         private set
     var currentPoints by mutableStateOf<List<TrackPoint>>(emptyList())
         private set
+    var airTimes by mutableStateOf<List<Long>>(emptyList())
+        private set
     private var startTime: Long = 0
 
     fun start() {
         isRecording = true
         isPaused = false
         currentPoints = emptyList()
+        airTimes = emptyList()
         startTime = System.currentTimeMillis()
     }
 
@@ -31,15 +34,24 @@ class TrackRecorder {
         currentPoints = currentPoints + TrackPoint(lat, lon, System.currentTimeMillis(), altitude)
     }
 
+    fun addAirTime(durationMs: Long) {
+        if (!isRecording || isPaused) return
+        airTimes = airTimes + durationMs
+    }
+
     fun stop(): Track {
         isRecording = false
         isPaused = false
         val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
+        val biggestAir = airTimes.maxOrNull() ?: 0L
+        val airCount = airTimes.size
         return Track(
             name = "Track ${fmt.format(Date(startTime))}",
             points = currentPoints,
             startTime = startTime,
-            endTime = System.currentTimeMillis()
+            endTime = System.currentTimeMillis(),
+            biggestAirMs = biggestAir,
+            airCount = airCount
         )
     }
 
@@ -47,5 +59,6 @@ class TrackRecorder {
         isRecording = false
         isPaused = false
         currentPoints = emptyList()
+        airTimes = emptyList()
     }
 }

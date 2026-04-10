@@ -278,3 +278,68 @@ fun formatTimeOfDay(ms: Long): String {
     val fmt = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
     return fmt.format(java.util.Date(ms))
 }
+
+// ── Monthly breakdown ───────────────────────────────────────────
+
+data class MonthStats(
+    val year: Int,
+    val month: Int, // 1..12
+    val label: String, // "January 2026"
+    val days: Int,
+    val runs: Int,
+    val vertical: Double,
+    val distance: Double,
+    val maxSpeedKmh: Double
+)
+
+/**
+ * Aggregate tracks by calendar month, newest first.
+ * Only returns months that have at least one track.
+ */
+fun computeMonthlyBreakdown(tracks: List<Track>): List<MonthStats> {
+    if (tracks.isEmpty()) return emptyList()
+
+    val cal = java.util.Calendar.getInstance()
+    val monthFmt = java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.getDefault())
+
+    // Group by year-month key
+    val groups = mutableMapOf<Pair<Int, Int>, MutableList<Track>>()
+    for (t in tracks) {
+        cal.timeInMillis = t.startTime
+        val year = cal.get(java.util.Calendar.YEAR)
+        val month = cal.get(java.util.Calendar.MONTH) + 1 // 0-indexed → 1-indexed
+        groups.getOrPut(year to month) { mutableListOf() }.add(t)
+    }
+
+    return groups.entries
+        .sortedWith(compareByDescending<Map.Entry<Pair<Int, Int>, MutableList<Track>>> { it.key.first }.thenByDescending { it.key.second })
+        .map { (key, monthTracks) ->
+            val (year, month) = key
+            var runs = 0; var vertical = 0.0; var distance = 0.0; var maxSpeed = 0.0
+            val uniqueDays = mutableSetOf<Long>()
+            for (t in monthTracks) {
+                val s = computeTrackStats(t.points)
+                runs += s.runCount
+                vertical += s.verticalDescended ?: 0.0
+                distance += s.distanceMeters
+                if (s.maxSpeedKmh > maxSpeed) maxSpeed = s.maxSpeedKmh
+                cal.timeInMillis = t.startTime
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
+                cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+                uniqueDays.add(cal.timeInMillis)
+            }
+            // Build a date for the label using the first day of the month
+            cal.clear()
+            cal.set(year, month - 1, 1)
+            MonthStats(
+                year = year,
+                month = month,
+                label = monthFmt.format(cal.time),
+                days = uniqueDays.size,
+                runs = runs,
+                vertical = vertical,
+                distance = distance,
+                maxSpeedKmh = maxSpeed
+            )
+        }
+}

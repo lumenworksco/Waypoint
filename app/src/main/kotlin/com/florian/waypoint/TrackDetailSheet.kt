@@ -98,6 +98,15 @@ fun TrackDetailSheet(
                 }
             }
 
+            // Air time
+            if (track.biggestAirMs > 0) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    StatItem("Biggest Air", "%.1f s".format(track.biggestAirMs / 1000.0))
+                    StatItem("Jumps", track.airCount.toString())
+                }
+            }
+
             // Time of day
             if (track.points.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(14.dp))

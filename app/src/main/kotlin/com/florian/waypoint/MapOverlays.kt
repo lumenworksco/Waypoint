@@ -128,6 +128,16 @@ fun createUserDotDrawable(context: Context): BitmapDrawable {
 fun safeParseColor(hex: String?): Int =
     try { android.graphics.Color.parseColor(hex ?: "#3C3734") } catch (_: Exception) { android.graphics.Color.parseColor("#3C3734") }
 
+/** Bearing in degrees (0-360, north=0) from point a to point b. */
+fun bearingDegrees(a: GeoPoint, b: GeoPoint): Float {
+    val lat1 = Math.toRadians(a.latitude)
+    val lat2 = Math.toRadians(b.latitude)
+    val dLon = Math.toRadians(b.longitude - a.longitude)
+    val y = sin(dLon) * cos(lat2)
+    val x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+    return ((Math.toDegrees(atan2(y, x)) + 360) % 360).toFloat()
+}
+
 fun distanceMeters(a: GeoPoint, b: GeoPoint): Double {
     val r = 6371000.0
     val dLat = Math.toRadians(b.latitude - a.latitude)

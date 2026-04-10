@@ -27,5 +27,7 @@ data class Track(
     val points: List<TrackPoint>,
     val startTime: Long,
     val endTime: Long,
-    val color: String = "#007AFF"
+    val color: String = "#007AFF",
+    val biggestAirMs: Long = 0,
+    val airCount: Int = 0
 )

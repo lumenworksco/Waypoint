@@ -196,6 +196,46 @@ fun DailyStatsSheet(
                         BigStat("Best Day", formatVertical(pb.maxDayVertical, imperial))
                         BigStat("Most Runs", pb.maxDayRuns.toString())
                     }
+
+                    // Monthly breakdown
+                    val months = remember(tracks) { computeMonthlyBreakdown(tracks) }
+                    if (months.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text("By Month", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        months.forEach { m ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(m.label, fontSize = 14.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.onSurface)
+                                    Text(
+                                        "${m.days} day${if (m.days != 1) "s" else ""}  \u00B7  ${m.runs} run${if (m.runs != 1) "s" else ""}  \u00B7  max ${formatTrackSpeed(m.maxSpeedKmh)}",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        formatVertical(m.vertical, imperial),
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.W600,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        formatDistance(m.distance, imperial).replace(" away", ""),
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

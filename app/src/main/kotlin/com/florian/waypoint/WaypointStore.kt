@@ -39,4 +39,12 @@ class WaypointStore(context: Context) {
     // Generic settings
     fun loadSetting(key: String, default: String): String = prefs.getString("setting_$key", default) ?: default
     fun saveSetting(key: String, value: String) { prefs.edit().putString("setting_$key", value).apply() }
+
+    // Home waypoint
+    fun loadHomeId(): String? = prefs.getString("home_waypoint_id", null)
+    fun saveHomeId(id: String?) {
+        prefs.edit().apply {
+            if (id == null) remove("home_waypoint_id") else putString("home_waypoint_id", id)
+        }.apply()
+    }
 }

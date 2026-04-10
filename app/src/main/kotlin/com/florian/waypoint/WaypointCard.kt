@@ -139,6 +139,8 @@ fun HintCapsule() {
 fun WaypointCard(
     waypoint: Waypoint,
     distance: String?,
+    isHome: Boolean,
+    onToggleHome: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onClose: () -> Unit
@@ -183,6 +185,7 @@ fun WaypointCard(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 IosTextAction("Share") { shareWaypoint(context, waypoint) }
                 IosTextAction("Navigate") { navigateToWaypoint(context, waypoint) }
+                IosTextAction(if (isHome) "Unset Home" else "Set Home", onClick = onToggleHome)
             }
         }
     }

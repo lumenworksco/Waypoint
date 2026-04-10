@@ -108,7 +108,9 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     var showWeatherSheet by remember { mutableStateOf(false) }
     var forecast by remember { mutableStateOf<Forecast?>(null) }
     var showOnboarding by remember { mutableStateOf(store.loadSetting("has_onboarded", "false") != "true") }
+    var homeId by remember { mutableStateOf(store.loadHomeId()) }
     val trackRecorder = remember { TrackRecorder() }
+    val airDetector = remember { AirTimeDetector(context) { durationMs -> trackRecorder.addAirTime(durationMs) } }
 
     // ── Location ────────────────────────────────────────────────
     val locationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -186,7 +188,12 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         if (android.os.Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
         permissionLauncher.launch(perms.toTypedArray())
     }
-    DisposableEffect(Unit) { onDispose { locationClient.removeLocationUpdates(locationCallback) } }
+    DisposableEffect(Unit) {
+        onDispose {
+            locationClient.removeLocationUpdates(locationCallback)
+            airDetector.stop()
+        }
+    }
 
     // Keep screen on while recording (if enabled in settings)
     val view = androidx.compose.ui.platform.LocalView.current
@@ -376,6 +383,22 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                     }
                 )
             }
+
+            // Home arrow pill — points back to the home waypoint
+            val home = homeId?.let { id -> waypoints.find { it.id == id } }
+            val loc = userLocation
+            if (home != null && loc != null) {
+                val homePoint = GeoPoint(home.latitude, home.longitude)
+                val dist = distanceMeters(loc, homePoint)
+                val bearing = bearingDegrees(loc, homePoint) - mapRotation
+                HomeArrowPill(
+                    distanceText = formatDistance(dist, useImperial).replace(" away", ""),
+                    bearing = bearing,
+                    onClick = {
+                        mapViewRef.value?.controller?.animateTo(homePoint, 16.0, 800)
+                    }
+                )
+            }
         }
 
         // ── Top-right: 3 buttons ────────────────────────────────
@@ -492,6 +515,11 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 if (sel != null) {
                     WaypointCard(waypoint = sel,
                         distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(sel.latitude, sel.longitude)), useImperial) },
+                        isHome = homeId == sel.id,
+                        onToggleHome = {
+                            homeId = if (homeId == sel.id) null else sel.id
+                            store.saveHomeId(homeId)
+                        },
                         onEdit = { showEditSheet = true }, onDelete = { pendingDelete = sel }, onClose = { selectedWaypoint = null })
                 }
             }
@@ -508,6 +536,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 RecordButton(isRecording = trackRecorder.isRecording, isPaused = trackRecorder.isPaused) {
                     vibrate(context)
                     if (trackRecorder.isRecording) {
+                        airDetector.stop()
                         val raw = trackRecorder.stop()
                         // Auto-name with resort if available
                         val dateFmt = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
@@ -545,6 +574,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                         try { context.stopService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
                     } else {
                         trackRecorder.start()
+                        airDetector.start()
                         autoFollow = true
                         try { context.startForegroundService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
                     }
@@ -611,6 +641,14 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                     )
                 }
             }
+        }
+
+        // ── Onboarding overlay (covers everything, edge-to-edge) ──
+        if (showOnboarding) {
+            OnboardingOverlay(onDone = {
+                showOnboarding = false
+                store.saveSetting("has_onboarded", "true")
+            })
         }
     }
 
@@ -686,13 +724,6 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     if (showWeatherSheet) {
         WeatherForecastSheet(forecast = forecast, imperial = useImperial, placeName = placeName, onDismiss = { showWeatherSheet = false })
     }
-
-    if (showOnboarding) {
-        OnboardingOverlay(onDone = {
-            showOnboarding = false
-            store.saveSetting("has_onboarded", "true")
-        })
-    }
 }
 
 // ── Weather pill ────────────────────────────────────────────────
@@ -711,6 +742,43 @@ private fun WeatherPill(text: String, warning: Boolean = false, onClick: () -> U
             fontWeight = FontWeight.W500,
             color = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+// ── Home arrow pill ─────────────────────────────────────────────
+@Composable
+private fun HomeArrowPill(distanceText: String, bearing: Float, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier.iosClickable(onClick).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("\uD83C\uDFE0", fontSize = 13.sp)
+            Spacer(modifier = Modifier.width(6.dp))
+            Canvas(modifier = Modifier.size(14.dp).rotate(bearing)) {
+                val cx = size.width / 2
+                val cy = size.height / 2
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx, 0f)
+                    lineTo(cx + 4.dp.toPx(), size.height)
+                    lineTo(cx, size.height - 3.dp.toPx())
+                    lineTo(cx - 4.dp.toPx(), size.height)
+                    close()
+                }
+                drawPath(path, Color(0xFF007AFF))
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                distanceText,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.W600,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 
