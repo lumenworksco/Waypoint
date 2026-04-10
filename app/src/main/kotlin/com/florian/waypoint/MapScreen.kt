@@ -107,6 +107,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     var showCompare by remember { mutableStateOf(false) }
     var showWeatherSheet by remember { mutableStateOf(false) }
     var forecast by remember { mutableStateOf<Forecast?>(null) }
+    var showOnboarding by remember { mutableStateOf(store.loadSetting("has_onboarded", "false") != "true") }
     val trackRecorder = remember { TrackRecorder() }
 
     // ── Location ────────────────────────────────────────────────
@@ -684,6 +685,13 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
 
     if (showWeatherSheet) {
         WeatherForecastSheet(forecast = forecast, imperial = useImperial, placeName = placeName, onDismiss = { showWeatherSheet = false })
+    }
+
+    if (showOnboarding) {
+        OnboardingOverlay(onDone = {
+            showOnboarding = false
+            store.saveSetting("has_onboarded", "true")
+        })
     }
 }
 
