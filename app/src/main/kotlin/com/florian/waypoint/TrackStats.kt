@@ -31,12 +31,12 @@ fun computeTrackStats(points: List<TrackPoint>): TrackStatistics {
         )
         totalDist += segDist
 
-        // Instantaneous speed (excludes lift segments)
+        // Instantaneous speed (excludes lift segments and GPS glitches)
         val dtMs = b.timestamp - a.timestamp
         if (dtMs in 500..30000) {
             val speedMs = segDist / (dtMs / 1000.0)
-            // Only count as "max speed" if not on a lift (horizontal speed > 2 m/s)
-            if (speedMs in 2.0..60.0) { // cap at 60 m/s ≈ 216 km/h to filter GPS jumps
+            // 2 m/s lower bound filters lift rides; 40 m/s (= 144 km/h) upper bound filters GPS jumps
+            if (speedMs in 2.0..40.0) {
                 maxSpeed = max(maxSpeed, speedMs * 3.6)
             }
         }
@@ -164,7 +164,8 @@ fun computeRunBreakdown(points: List<TrackPoint>): List<RunBreakdown> {
             val dt = b.timestamp - a.timestamp
             if (dt in 500..30000) {
                 val kmh = (d / (dt / 1000.0)) * 3.6
-                if (kmh in 2.0..220.0) runMax = max(runMax, kmh)
+                // Filter lift rides (< 7 km/h) and GPS jumps (> 144 km/h)
+                if (kmh in 7.0..144.0) runMax = max(runMax, kmh)
             }
         }
         val duration = segment.last().timestamp - segment.first().timestamp

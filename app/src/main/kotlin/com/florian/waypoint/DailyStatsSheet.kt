@@ -36,7 +36,7 @@ fun DailyStatsSheet(
     val today = remember(tracks) { filterToday(tracks) }
     val todayTotals = remember(today) { aggregate(today) }
     val allTimeTotals = remember(tracks) { aggregate(tracks) }
-    val pb = remember { store.loadPersonalBests() }
+    val pb = remember(tracks) { computePersonalBests(tracks) }
     val streak = remember(tracks) { computeStreak(tracks) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {

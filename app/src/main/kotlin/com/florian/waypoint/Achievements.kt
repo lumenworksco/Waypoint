@@ -7,14 +7,58 @@ data class PersonalBests(
     val maxDayDistance: Double
 )
 
-fun WaypointStore.loadPersonalBests(): PersonalBests = PersonalBests(
+/**
+ * Compute personal bests directly from the full track history.
+ * This is always accurate, even for imported GPX tracks.
+ */
+fun computePersonalBests(tracks: List<Track>): PersonalBests {
+    if (tracks.isEmpty()) return PersonalBests(0.0, 0.0, 0, 0.0)
+
+    // Max speed ever
+    var maxSpeed = 0.0
+    for (t in tracks) {
+        val s = computeTrackStats(t.points)
+        if (s.maxSpeedKmh > maxSpeed) maxSpeed = s.maxSpeedKmh
+    }
+
+    // Group tracks by day and find the best day
+    val dayGroups = mutableMapOf<Long, MutableList<Track>>()
+    val cal = java.util.Calendar.getInstance()
+    for (t in tracks) {
+        cal.timeInMillis = t.startTime
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+        dayGroups.getOrPut(cal.timeInMillis) { mutableListOf() }.add(t)
+    }
+
+    var maxDayVert = 0.0
+    var maxDayRuns = 0
+    var maxDayDist = 0.0
+    for ((_, dayTracks) in dayGroups) {
+        var v = 0.0; var r = 0; var d = 0.0
+        for (t in dayTracks) {
+            val s = computeTrackStats(t.points)
+            v += s.verticalDescended ?: 0.0
+            r += s.runCount
+            d += s.distanceMeters
+        }
+        if (v > maxDayVert) maxDayVert = v
+        if (r > maxDayRuns) maxDayRuns = r
+        if (d > maxDayDist) maxDayDist = d
+    }
+
+    return PersonalBests(maxSpeed, maxDayVert, maxDayRuns, maxDayDist)
+}
+
+// Legacy stored-bests accessors kept for achievement-change detection only.
+fun WaypointStore.loadStoredBests(): PersonalBests = PersonalBests(
     maxSpeedKmh = loadSetting("pb_max_speed", "0").toDoubleOrNull() ?: 0.0,
     maxDayVertical = loadSetting("pb_max_vertical", "0").toDoubleOrNull() ?: 0.0,
     maxDayRuns = loadSetting("pb_max_runs", "0").toIntOrNull() ?: 0,
     maxDayDistance = loadSetting("pb_max_distance", "0").toDoubleOrNull() ?: 0.0
 )
 
-fun WaypointStore.savePersonalBests(pb: PersonalBests) {
+fun WaypointStore.saveStoredBests(pb: PersonalBests) {
     saveSetting("pb_max_speed", pb.maxSpeedKmh.toString())
     saveSetting("pb_max_vertical", pb.maxDayVertical.toString())
     saveSetting("pb_max_runs", pb.maxDayRuns.toString())
@@ -32,7 +76,7 @@ fun WaypointStore.checkAchievements(
     todayRuns: Int,
     todayDistance: Double
 ): List<String> {
-    val pb = loadPersonalBests()
+    val pb = loadStoredBests()
     val achievements = mutableListOf<String>()
     var updated = pb
 
@@ -52,6 +96,6 @@ fun WaypointStore.checkAchievements(
         updated = updated.copy(maxDayDistance = todayDistance)
     }
 
-    if (updated != pb) savePersonalBests(updated)
+    if (updated != pb) saveStoredBests(updated)
     return achievements
 }
