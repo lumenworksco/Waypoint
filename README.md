@@ -44,6 +44,7 @@ Crafted in the French Alps.
 - **Streak counter** — consecutive days recorded
 - **Personal bests** — auto-tracked and celebrated with banner notifications when broken
 - **Achievement banners** — "🏁 New top speed!", "🏆 Daily vertical record!", etc.
+- **Track comparison** — pick two tracks and see a row-by-row side-by-side comparison with the winner highlighted
 - **Home screen widget** — today's runs and vertical on your launcher, tap to open the app
 
 ### Waypoints
@@ -112,6 +113,7 @@ app/src/main/kotlin/com/florian/waypoint/
   // Sheets
   DailyStatsSheet.kt       Today + All-Time tabs, pace chart, personal bests, monthly
   TrackDetailSheet.kt      Full track breakdown with elevation profile and runs list
+  TrackCompareSheet.kt     Side-by-side track comparison
   SpeedometerSheet.kt      Full-screen live dashboard
   WeatherForecastSheet.kt  Current conditions + 24h hourly forecast
   SettingsSheet.kt         All user preferences + About + easter egg

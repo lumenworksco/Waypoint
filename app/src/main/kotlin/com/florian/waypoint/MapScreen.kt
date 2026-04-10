@@ -121,6 +121,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     var achievementBanner by remember { mutableStateOf<String?>(null) }
     var placeName by remember { mutableStateOf<String?>(null) }
     var lastPlaceFetchLoc by remember { mutableStateOf<GeoPoint?>(null) }
+    var showCompare by remember { mutableStateOf(false) }
     var showWeatherSheet by remember { mutableStateOf(false) }
     var forecast by remember { mutableStateOf<Forecast?>(null) }
     var showOnboarding by remember { mutableStateOf(store.loadSetting("has_onboarded", "false") != "true") }
@@ -707,6 +708,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     if (showDailyStats) {
         DailyStatsSheet(
             store = store, tracks = tracks, imperial = useImperial,
+            onCompare = { showDailyStats = false; showCompare = true },
             onDismiss = { showDailyStats = false }
         )
     }
@@ -724,6 +726,10 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             imperial = useImperial,
             onDismiss = { showSpeedometer = false }
         )
+    }
+
+    if (showCompare) {
+        TrackCompareSheet(tracks = tracks, imperial = useImperial, onDismiss = { showCompare = false })
     }
 
     if (showWeatherSheet) {
