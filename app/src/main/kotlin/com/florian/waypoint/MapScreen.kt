@@ -368,12 +368,6 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         }
 
         // ── Measure result banner ───────────────────────────────
-        measureResult?.let { result ->
-            Surface(modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 60.dp),
-                shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.primary, shadowElevation = 4.dp
-            ) { Text(result, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp), fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onPrimary) }
-        }
-
         // ── Bottom-left: scale bar (hidden when card open) ──
         if (selectedWaypoint == null) {
             ComposeScaleBar(
