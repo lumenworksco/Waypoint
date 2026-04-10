@@ -330,24 +330,30 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             }
         })
 
-        // ── Top-left: compass + coordinate header ─────────────────
-        Row(
-            modifier = Modifier.statusBarsPadding().padding(start = 12.dp, top = 12.dp).align(Alignment.TopStart),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // ── Top-left: compass + coordinate header + weather ─────
+        Column(
+            modifier = Modifier.statusBarsPadding().padding(start = 12.dp, top = 12.dp, end = 72.dp).align(Alignment.TopStart),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.Start
         ) {
-            ComposeCompass(rotation = mapRotation, onClick = {
-                vibrate(context, light = true)
-                mapViewRef.value?.apply { mapOrientation = 0f; invalidate() }
-                mapRotation = 0f
-            })
-            CoordinateHeader(
-                userLocation = userLocation, locationEnabled = locationEnabled, coordFormat = coordFormat,
-                altitudeText = currentAltitude?.let { "Alt ${formatVertical(it, useImperial)}${placeName?.let { p -> " \u00B7 $p" } ?: ""}" },
-                speedText = formatSpeed(currentSpeed, useImperial),
-                onToggleFormat = { coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]; store.saveCoordFormat(coordFormat.name) },
-                onLongPress = { showSpeedometer = true }
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ComposeCompass(rotation = mapRotation, onClick = {
+                    vibrate(context, light = true)
+                    mapViewRef.value?.apply { mapOrientation = 0f; invalidate() }
+                    mapRotation = 0f
+                })
+                CoordinateHeader(
+                    userLocation = userLocation, locationEnabled = locationEnabled, coordFormat = coordFormat,
+                    altitudeText = currentAltitude?.let { "Alt ${formatVertical(it, useImperial)}${placeName?.let { p -> " \u00B7 $p" } ?: ""}" },
+                    speedText = formatSpeed(currentSpeed, useImperial),
+                    onToggleFormat = { coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]; store.saveCoordFormat(coordFormat.name) },
+                    onLongPress = { showSpeedometer = true },
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+            }
             weather?.let { w ->
                 val wind = formatWind(w.windSpeedKmh, useImperial)
                 val tempStr = formatTemperature(w.temperatureC, useImperial)
