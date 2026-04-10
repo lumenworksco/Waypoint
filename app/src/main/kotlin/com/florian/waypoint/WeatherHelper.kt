@@ -5,32 +5,81 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 data class WeatherData(val temperatureC: Double, val windSpeedKmh: Double, val weatherCode: Int)
+data class ForecastHour(val time: Long, val tempC: Double, val code: Int, val windKmh: Double, val snowCm: Double)
+data class Forecast(val current: WeatherData, val hourly: List<ForecastHour>)
 
 /**
  * Fetch current weather from Open-Meteo (free, no API key needed).
- * Call from a background thread — performs a blocking network request.
+ * Call from a background thread.
  */
 fun fetchWeather(lat: Double, lon: Double): WeatherData? {
     return try {
         val url = URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
         val conn = url.openConnection() as HttpURLConnection
-        conn.connectTimeout = 5000
-        conn.readTimeout = 5000
-        conn.requestMethod = "GET"
-
+        conn.connectTimeout = 5000; conn.readTimeout = 5000
         val response = conn.inputStream.bufferedReader().use { it.readText() }
         conn.disconnect()
-
-        val json = JSONObject(response)
-        val cw = json.getJSONObject("current_weather")
+        val cw = JSONObject(response).getJSONObject("current_weather")
         WeatherData(
             temperatureC = cw.getDouble("temperature"),
             windSpeedKmh = cw.getDouble("windspeed"),
             weatherCode = cw.getInt("weathercode")
         )
-    } catch (_: Exception) {
-        null
-    }
+    } catch (_: Exception) { null }
+}
+
+/**
+ * Fetch 24-hour forecast + current from Open-Meteo.
+ */
+fun fetchForecast(lat: Double, lon: Double): Forecast? {
+    return try {
+        val url = URL(
+            "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
+            "&current_weather=true&hourly=temperature_2m,weathercode,windspeed_10m,snowfall&forecast_days=2"
+        )
+        val conn = url.openConnection() as HttpURLConnection
+        conn.connectTimeout = 5000; conn.readTimeout = 5000
+        val response = conn.inputStream.bufferedReader().use { it.readText() }
+        conn.disconnect()
+
+        val json = JSONObject(response)
+        val cw = json.getJSONObject("current_weather")
+        val current = WeatherData(
+            temperatureC = cw.getDouble("temperature"),
+            windSpeedKmh = cw.getDouble("windspeed"),
+            weatherCode = cw.getInt("weathercode")
+        )
+
+        val hourly = json.getJSONObject("hourly")
+        val times = hourly.getJSONArray("time")
+        val temps = hourly.getJSONArray("temperature_2m")
+        val codes = hourly.getJSONArray("weathercode")
+        val winds = hourly.getJSONArray("windspeed_10m")
+        val snows = hourly.getJSONArray("snowfall")
+
+        val isoFmt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm", java.util.Locale.US)
+        isoFmt.timeZone = java.util.TimeZone.getDefault()
+
+        val nowMs = System.currentTimeMillis()
+        val hours = mutableListOf<ForecastHour>()
+        for (i in 0 until times.length()) {
+            val t: Long = try {
+                isoFmt.parse(times.getString(i))?.time ?: continue
+            } catch (_: Exception) {
+                continue
+            }
+            if (t < nowMs - 3_600_000) continue // skip past hours
+            hours.add(ForecastHour(
+                time = t,
+                tempC = temps.getDouble(i),
+                code = codes.getInt(i),
+                windKmh = winds.getDouble(i),
+                snowCm = snows.getDouble(i) // open-meteo snowfall is already in cm
+            ))
+            if (hours.size >= 24) break
+        }
+        Forecast(current, hours)
+    } catch (_: Exception) { null }
 }
 
 fun formatTemperature(celsius: Double, imperial: Boolean): String =

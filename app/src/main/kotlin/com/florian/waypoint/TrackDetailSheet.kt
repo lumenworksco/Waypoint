@@ -3,33 +3,62 @@ package com.florian.waypoint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackDetailSheet(track: Track, imperial: Boolean, onDelete: () -> Unit, onDismiss: () -> Unit) {
+fun TrackDetailSheet(
+    track: Track,
+    imperial: Boolean,
+    onColorTrack: (Track) -> Unit = {},
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
     val stats = remember(track) { computeTrackStats(track.points) }
+    val tos = remember(track) { computeTimeOnSnow(track.points) }
+    val runs = remember(track) { computeRunBreakdown(track.points) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)
+        ) {
             // Header
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(track.color)), CircleShape))
                 Spacer(modifier = Modifier.width(10.dp))
-                Text(track.name, fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(track.name, fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().iosClickable {
+                            shareTrackImage(context, track, imperial)
+                        },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.Share, "Share", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -41,13 +70,23 @@ fun TrackDetailSheet(track: Track, imperial: Boolean, onDelete: () -> Unit, onDi
                 StatItem("Avg Speed", formatTrackSpeed(stats.avgSpeedKmh))
             }
 
-            // Ski stats — vertical + max speed + runs
+            // Ski stats
             if (stats.verticalDescended != null || stats.maxSpeedKmh > 0 || stats.runCount > 0) {
                 Spacer(modifier = Modifier.height(14.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     stats.verticalDescended?.let { StatItem("Vertical", formatVertical(it, imperial)) }
                     if (stats.maxSpeedKmh > 0) StatItem("Max Speed", formatTrackSpeed(stats.maxSpeedKmh))
                     if (stats.runCount > 0) StatItem("Runs", stats.runCount.toString())
+                }
+            }
+
+            // Time on snow vs lifts
+            if (tos.snowMs + tos.liftMs > 0) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    StatItem("On Snow", "${tos.snowPercent}%")
+                    StatItem("Snow Time", formatDuration(tos.snowMs))
+                    StatItem("Lift Time", formatDuration(tos.liftMs))
                 }
             }
 
@@ -59,6 +98,18 @@ fun TrackDetailSheet(track: Track, imperial: Boolean, onDelete: () -> Unit, onDi
                 }
             }
 
+            // Time of day
+            if (track.points.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    "${formatTimeOfDay(track.startTime)} \u2192 ${formatTimeOfDay(track.endTime)}",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+
             // Elevation profile
             val altitudes = track.points.mapNotNull { it.altitude?.takeIf { a -> a != 0.0 } }
             if (altitudes.size >= 3) {
@@ -66,6 +117,14 @@ fun TrackDetailSheet(track: Track, imperial: Boolean, onDelete: () -> Unit, onDi
                 Text("Elevation", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
                 Spacer(modifier = Modifier.height(10.dp))
                 ElevationChart(altitudes = altitudes, color = Color(safeParseColor(track.color)))
+            }
+
+            // Run breakdown
+            if (runs.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(20.dp))
+                Text("Runs", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                Spacer(modifier = Modifier.height(8.dp))
+                runs.forEach { run -> RunRow(run = run, imperial = imperial) }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -89,6 +148,32 @@ private fun StatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.W600, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+    }
+}
+
+@Composable
+private fun RunRow(run: RunBreakdown, imperial: Boolean) {
+    val diffColor = Color(difficultyColor(run.difficulty))
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.size(14.dp).background(diffColor, CircleShape))
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Run ${run.index} \u00B7 ${run.difficulty.label}",
+                fontWeight = FontWeight.W500, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "${formatVertical(run.verticalDrop, imperial)}  \u00B7  ${formatDuration(run.endTime - run.startTime)}",
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.outline
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            Text(formatTrackSpeed(run.maxSpeedKmh), fontSize = 13.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.onSurface)
+            Text("max", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
+        }
     }
 }
 
@@ -121,7 +206,6 @@ private fun ElevationChart(altitudes: List<Double>, color: Color) {
                 drawPath(fill, color.copy(alpha = 0.12f))
                 drawPath(line, color, style = Stroke(width = 2.dp.toPx()))
             }
-            // Labels
             Text("${maxAlt.toInt()} m", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(start = 14.dp, top = 6.dp).align(Alignment.TopStart))
             Text("${minAlt.toInt()} m", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline,

@@ -104,6 +104,9 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     var achievementBanner by remember { mutableStateOf<String?>(null) }
     var placeName by remember { mutableStateOf<String?>(null) }
     var lastPlaceFetchLoc by remember { mutableStateOf<GeoPoint?>(null) }
+    var showCompare by remember { mutableStateOf(false) }
+    var showWeatherSheet by remember { mutableStateOf(false) }
+    var forecast by remember { mutableStateOf<Forecast?>(null) }
     val trackRecorder = remember { TrackRecorder() }
 
     // ── Location ────────────────────────────────────────────────
@@ -210,14 +213,18 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         mapView.overlays.removeAll { it is Marker || it is Polyline }
         val density = context.resources.displayMetrics.density
 
-        // Tracks
+        // Tracks (speed heatmap for the selected one, solid color for others)
         for (track in tracks) {
-            mapView.overlays.add(Polyline(mapView).apply {
-                setPoints(track.points.map { GeoPoint(it.latitude, it.longitude) })
-                outlinePaint.color = safeParseColor(track.color)
-                outlinePaint.strokeWidth = 3f * density; outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
-                outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND; outlinePaint.isAntiAlias = true
-            })
+            if (track.id == selectedTrack?.id) {
+                addSpeedHeatmap(mapView, track.points, density)
+            } else {
+                mapView.overlays.add(Polyline(mapView).apply {
+                    setPoints(track.points.map { GeoPoint(it.latitude, it.longitude) })
+                    outlinePaint.color = safeParseColor(track.color)
+                    outlinePaint.strokeWidth = 3f * density; outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                    outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND; outlinePaint.isAntiAlias = true
+                })
+            }
         }
         if (trackRecorder.currentPoints.isNotEmpty()) {
             mapView.overlays.add(Polyline(mapView).apply {
@@ -347,7 +354,19 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 val warn = w.windSpeedKmh >= 50.0
                 WeatherPill(
                     text = "${weatherEmoji(w.weatherCode)} $tempStr \u00B7 $wind",
-                    warning = warn
+                    warning = warn,
+                    onClick = {
+                        showWeatherSheet = true
+                        // Fetch forecast on demand
+                        userLocation?.let { loc ->
+                            scope.launch {
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    val f = fetchForecast(loc.latitude, loc.longitude)
+                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { forecast = f }
+                                }
+                            }
+                        }
+                    }
                 )
             }
         }
@@ -482,7 +501,12 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 RecordButton(isRecording = trackRecorder.isRecording, isPaused = trackRecorder.isPaused) {
                     vibrate(context)
                     if (trackRecorder.isRecording) {
-                        val t = trackRecorder.stop()
+                        val raw = trackRecorder.stop()
+                        // Auto-name with resort if available
+                        val dateFmt = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
+                        val niceName = if (placeName != null) "${placeName} \u2014 ${dateFmt.format(java.util.Date(raw.startTime))}"
+                        else raw.name
+                        val t = raw.copy(name = niceName)
                         if (t.points.size >= 2) {
                             tracks = tracks + t; store.saveTracks(tracks)
                             // Check achievements against today's totals
@@ -507,6 +531,8 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                                 vibrate(context)
                                 scope.launch { kotlinx.coroutines.delay(4000); achievementBanner = null }
                             }
+                            // Refresh home screen widget
+                            StatsWidget.refreshAll(context)
                         }
                         autoFollow = false
                         try { context.stopService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
@@ -624,7 +650,11 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     }
 
     if (showDailyStats) {
-        DailyStatsSheet(store = store, tracks = tracks, imperial = useImperial, onDismiss = { showDailyStats = false })
+        DailyStatsSheet(
+            store = store, tracks = tracks, imperial = useImperial,
+            onCompare = { showDailyStats = false; showCompare = true },
+            onDismiss = { showDailyStats = false }
+        )
     }
 
     if (showSpeedometer) {
@@ -641,11 +671,19 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             onDismiss = { showSpeedometer = false }
         )
     }
+
+    if (showCompare) {
+        TrackCompareSheet(tracks = tracks, imperial = useImperial, onDismiss = { showCompare = false })
+    }
+
+    if (showWeatherSheet) {
+        WeatherForecastSheet(forecast = forecast, imperial = useImperial, placeName = placeName, onDismiss = { showWeatherSheet = false })
+    }
 }
 
 // ── Weather pill ────────────────────────────────────────────────
 @Composable
-private fun WeatherPill(text: String, warning: Boolean = false) {
+private fun WeatherPill(text: String, warning: Boolean = false, onClick: () -> Unit = {}) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = if (warning) MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
@@ -654,7 +692,7 @@ private fun WeatherPill(text: String, warning: Boolean = false) {
     ) {
         Text(
             text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.iosClickable(onClick).padding(horizontal = 12.dp, vertical = 8.dp),
             fontSize = 13.sp,
             fontWeight = FontWeight.W500,
             color = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
@@ -705,6 +743,37 @@ private fun RecordButton(isRecording: Boolean, isPaused: Boolean = false, onClic
             if (isRecording) Icon(Icons.Filled.Stop, "Stop", tint = Color.White, modifier = Modifier.size(22.dp))
             else Icon(Icons.Filled.FiberManualRecord, "Record", tint = Color(0xFFFF2D55), modifier = Modifier.size(18.dp))
         }
+    }
+}
+
+/** Add a speed-colored polyline (each segment colored by its instantaneous speed). */
+private fun addSpeedHeatmap(mapView: MapView, points: List<TrackPoint>, density: Float) {
+    if (points.size < 2) return
+    // Batch by segments of N points each so we don't create thousands of polylines
+    val batchSize = 8
+    var i = 0
+    while (i < points.size - 1) {
+        val end = minOf(i + batchSize, points.size - 1)
+        val segment = points.subList(i, end + 1)
+        // Average speed for this batch
+        var dist = 0.0
+        var time = 0L
+        for (j in 1 until segment.size) {
+            val a = segment[j - 1]; val b = segment[j]
+            dist += distanceMeters(GeoPoint(a.latitude, a.longitude), GeoPoint(b.latitude, b.longitude))
+            time += b.timestamp - a.timestamp
+        }
+        val kmh = if (time > 0) (dist / 1000.0) / (time / 3_600_000.0) else 0.0
+        val color = speedToColor(kmh)
+        mapView.overlays.add(Polyline(mapView).apply {
+            setPoints(segment.map { GeoPoint(it.latitude, it.longitude) })
+            outlinePaint.color = color
+            outlinePaint.strokeWidth = 5f * density
+            outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+            outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+            outlinePaint.isAntiAlias = true
+        })
+        i = end
     }
 }
 
