@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Landscape
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.*
@@ -39,7 +38,6 @@ fun DailyStatsSheet(
     store: WaypointStore,
     tracks: List<Track>,
     imperial: Boolean,
-    onCompare: () -> Unit,
     onDismiss: () -> Unit
 ) {
     var tab by remember { mutableIntStateOf(0) } // 0 = today, 1 = all time
@@ -54,18 +52,7 @@ fun DailyStatsSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Landscape, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.width(10.dp))
-                Text("Ski Stats", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                if (tracks.size >= 2) {
-                    Surface(
-                        modifier = Modifier.size(40.dp),
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize().iosClickable(onCompare), contentAlignment = Alignment.Center) {
-                            Icon(Icons.AutoMirrored.Filled.CompareArrows, "Compare", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
+                Text("Ski Stats", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface)
             }
 
             // Streak banner
