@@ -36,6 +36,9 @@ fun fetchWeather(lat: Double, lon: Double): WeatherData? {
 fun formatTemperature(celsius: Double, imperial: Boolean): String =
     if (imperial) "${(celsius * 9 / 5 + 32).toInt()}\u00B0F" else "${celsius.toInt()}\u00B0C"
 
+fun formatWind(kmh: Double, imperial: Boolean): String =
+    if (imperial) "${(kmh * 0.621371).toInt()} mph" else "${kmh.toInt()} km/h"
+
 /** Maps Open-Meteo WMO weather codes to a simple emoji/symbol. */
 fun weatherEmoji(code: Int): String = when (code) {
     0 -> "\u2600\uFE0F" // clear

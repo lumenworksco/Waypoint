@@ -98,6 +98,12 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     var mapRotation by remember { mutableFloatStateOf(0f) }
     var metersPerPx by remember { mutableFloatStateOf(1f) }
     var currentSpeed by remember { mutableFloatStateOf(0f) }
+    var currentAltitude by remember { mutableStateOf<Double?>(null) }
+    var autoFollow by remember { mutableStateOf(false) }
+    var showSpeedometer by remember { mutableStateOf(false) }
+    var achievementBanner by remember { mutableStateOf<String?>(null) }
+    var placeName by remember { mutableStateOf<String?>(null) }
+    var lastPlaceFetchLoc by remember { mutableStateOf<GeoPoint?>(null) }
     val trackRecorder = remember { TrackRecorder() }
 
     // ── Location ────────────────────────────────────────────────
@@ -106,10 +112,17 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 val loc = result.lastLocation ?: return
-                userLocation = GeoPoint(loc.latitude, loc.longitude)
+                val gp = GeoPoint(loc.latitude, loc.longitude)
+                userLocation = gp
                 locationEnabled = true
                 currentSpeed = if (loc.hasSpeed()) loc.speed else 0f
+                if (loc.hasAltitude() && loc.altitude != 0.0) currentAltitude = loc.altitude
                 if (trackRecorder.isRecording) trackRecorder.addPoint(loc.latitude, loc.longitude, loc.altitude)
+
+                // Auto-follow: keep map centered while recording
+                if (autoFollow && trackRecorder.isRecording) {
+                    mapViewRef.value?.controller?.animateTo(gp)
+                }
 
                 // Proximity alerts
                 val radius = store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0
@@ -170,6 +183,27 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         permissionLauncher.launch(perms.toTypedArray())
     }
     DisposableEffect(Unit) { onDispose { locationClient.removeLocationUpdates(locationCallback) } }
+
+    // Keep screen on while recording (if enabled in settings)
+    val view = androidx.compose.ui.platform.LocalView.current
+    DisposableEffect(trackRecorder.isRecording, settingsVersion) {
+        val keepOn = store.loadSetting("keep_screen_on", "true") == "true"
+        view.keepScreenOn = trackRecorder.isRecording && keepOn
+        onDispose { view.keepScreenOn = false }
+    }
+
+    // Resort / place detection via Nominatim, refetch when moved > 5km
+    LaunchedEffect(userLocation) {
+        val loc = userLocation ?: return@LaunchedEffect
+        val last = lastPlaceFetchLoc
+        if (last == null || distanceMeters(last, loc) > 5000) {
+            lastPlaceFetchLoc = loc
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val name = fetchPlaceName(loc.latitude, loc.longitude)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { placeName = name }
+            }
+        }
+    }
 
     // ── Refresh overlays ────────────────────────────────────────
     fun refreshOverlays(mapView: MapView) {
@@ -278,6 +312,13 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                         projection?.let { p -> val px = p.metersToPixels(1000f); if (px > 0) metersPerPx = 1000f / px }
                     }
                 })
+                // User-touch listener — any manual interaction turns off auto-follow
+                setOnTouchListener { _, event ->
+                    if (event.action == android.view.MotionEvent.ACTION_DOWN) {
+                        autoFollow = false
+                    }
+                    false
+                }
                 mapViewRef.value = this
             }
         })
@@ -295,12 +336,18 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             })
             CoordinateHeader(
                 userLocation = userLocation, locationEnabled = locationEnabled, coordFormat = coordFormat,
+                altitudeText = currentAltitude?.let { "Alt ${formatVertical(it, useImperial)}${placeName?.let { p -> " \u00B7 $p" } ?: ""}" },
                 speedText = formatSpeed(currentSpeed, useImperial),
                 onToggleFormat = { coordFormat = CoordFormat.entries[(coordFormat.ordinal + 1) % CoordFormat.entries.size]; store.saveCoordFormat(coordFormat.name) },
+                onLongPress = { showSpeedometer = true }
             )
             weather?.let { w ->
+                val wind = formatWind(w.windSpeedKmh, useImperial)
+                val tempStr = formatTemperature(w.temperatureC, useImperial)
+                val warn = w.windSpeedKmh >= 50.0
                 WeatherPill(
-                    text = "${weatherEmoji(w.weatherCode)} ${formatTemperature(w.temperatureC, useImperial)}"
+                    text = "${weatherEmoji(w.weatherCode)} $tempStr \u00B7 $wind",
+                    warning = warn
                 )
             }
         }
@@ -435,10 +482,37 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 RecordButton(isRecording = trackRecorder.isRecording, isPaused = trackRecorder.isPaused) {
                     vibrate(context)
                     if (trackRecorder.isRecording) {
-                        val t = trackRecorder.stop(); if (t.points.size >= 2) { tracks = tracks + t; store.saveTracks(tracks) }
+                        val t = trackRecorder.stop()
+                        if (t.points.size >= 2) {
+                            tracks = tracks + t; store.saveTracks(tracks)
+                            // Check achievements against today's totals
+                            val todayTracks = tracks.filter {
+                                val cal = java.util.Calendar.getInstance().apply {
+                                    set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+                                    set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+                                }
+                                it.startTime >= cal.timeInMillis
+                            }
+                            var dayVert = 0.0; var dayRuns = 0; var dayDist = 0.0; var dayMax = 0.0
+                            for (tt in todayTracks) {
+                                val s = computeTrackStats(tt.points)
+                                dayVert += s.verticalDescended ?: 0.0
+                                dayRuns += s.runCount
+                                dayDist += s.distanceMeters
+                                if (s.maxSpeedKmh > dayMax) dayMax = s.maxSpeedKmh
+                            }
+                            val achievements = store.checkAchievements(dayMax, dayVert, dayRuns, dayDist)
+                            if (achievements.isNotEmpty()) {
+                                achievementBanner = achievements.first()
+                                vibrate(context)
+                                scope.launch { kotlinx.coroutines.delay(4000); achievementBanner = null }
+                            }
+                        }
+                        autoFollow = false
                         try { context.stopService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
                     } else {
                         trackRecorder.start()
+                        autoFollow = true
                         try { context.startForegroundService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
                     }
                 }
@@ -457,6 +531,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                         val z = store.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
                         mapViewRef.value?.controller?.animateTo(it, z, 600)
                     }
+                    if (trackRecorder.isRecording) autoFollow = true
                 }
             }
         }
@@ -477,6 +552,30 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                             lastDeleted?.let { waypoints = waypoints + it; store.save(waypoints); lastDeleted = null }
                             showUndoToast = false
                         }.padding(horizontal = 10.dp, vertical = 8.dp))
+                }
+            }
+        }
+
+        // Achievement banner
+        androidx.compose.animation.AnimatedVisibility(
+            visible = achievementBanner != null,
+            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { -it },
+            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { -it },
+            modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 80.dp)
+        ) {
+            achievementBanner?.let { text ->
+                Surface(
+                    shape = RoundedCornerShape(50.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    shadowElevation = 8.dp
+                ) {
+                    Text(
+                        text,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.W600,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }
@@ -525,16 +624,32 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     }
 
     if (showDailyStats) {
-        DailyStatsSheet(tracks = tracks, imperial = useImperial, onDismiss = { showDailyStats = false })
+        DailyStatsSheet(store = store, tracks = tracks, imperial = useImperial, onDismiss = { showDailyStats = false })
+    }
+
+    if (showSpeedometer) {
+        // Compute current-run vertical + count from active recording
+        val currentStats = remember(trackRecorder.currentPoints.size) {
+            computeTrackStats(trackRecorder.currentPoints)
+        }
+        SpeedometerSheet(
+            currentSpeedKmh = currentSpeed * 3.6,
+            altitudeMeters = currentAltitude,
+            currentRunVertical = currentStats.verticalDescended,
+            currentRunCount = currentStats.runCount,
+            imperial = useImperial,
+            onDismiss = { showSpeedometer = false }
+        )
     }
 }
 
 // ── Weather pill ────────────────────────────────────────────────
 @Composable
-private fun WeatherPill(text: String) {
+private fun WeatherPill(text: String, warning: Boolean = false) {
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        color = if (warning) MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+        else MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
         shadowElevation = 4.dp
     ) {
         Text(
@@ -542,7 +657,7 @@ private fun WeatherPill(text: String) {
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             fontSize = 13.sp,
             fontWeight = FontWeight.W500,
-            color = MaterialTheme.colorScheme.onSurface
+            color = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
         )
     }
 }

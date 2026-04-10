@@ -70,8 +70,10 @@ fun CoordinateHeader(
     userLocation: GeoPoint?,
     locationEnabled: Boolean,
     coordFormat: CoordFormat,
+    altitudeText: String?,
     speedText: String?,
     onToggleFormat: () -> Unit,
+    onLongPress: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -80,31 +82,43 @@ fun CoordinateHeader(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
         shadowElevation = 4.dp
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .iosClickable(onToggleFormat)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .iosClickable(onLongPress)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .background(
-                        if (locationEnabled) MaterialTheme.colorScheme.primary else Color(0xFFAEAEB2),
-                        CircleShape
-                    )
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (userLocation != null) formatCoordinate(userLocation.latitude, userLocation.longitude, coordFormat) else "Locating\u2026",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.W500,
-                color = if (locationEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
-                letterSpacing = 0.2.sp
-            )
-            if (speedText != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .background(
+                            if (locationEnabled) MaterialTheme.colorScheme.primary else Color(0xFFAEAEB2),
+                            CircleShape
+                        )
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(speedText, fontSize = 12.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    text = if (userLocation != null) formatCoordinate(userLocation.latitude, userLocation.longitude, coordFormat) else "Locating\u2026",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.W500,
+                    color = if (locationEnabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                    letterSpacing = 0.2.sp,
+                    modifier = Modifier.iosClickable(onToggleFormat)
+                )
+                if (speedText != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(speedText, fontSize = 12.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            if (altitudeText != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    altitudeText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.W500,
+                    color = MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.padding(start = 15.dp)
+                )
             }
         }
     }

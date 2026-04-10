@@ -29,6 +29,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
         store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0
     ) }
     var cacheSize by remember { mutableStateOf(calcCacheSize(context)) }
+    var keepScreenOn by remember { mutableStateOf(store.loadSetting("keep_screen_on", "true") == "true") }
 
     ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
@@ -97,6 +98,20 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                     Text("High-contrast UI for bright snow", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 }
                 Switch(checked = glareMode, onCheckedChange = { onToggleGlare() })
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Keep screen on
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Keep Screen On", fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Stay awake while recording a track", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                }
+                Switch(checked = keepScreenOn, onCheckedChange = {
+                    keepScreenOn = it
+                    store.saveSetting("keep_screen_on", it.toString())
+                })
             }
 
             Spacer(modifier = Modifier.height(16.dp))
