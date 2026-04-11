@@ -66,6 +66,12 @@ Crafted in the French Alps.
 - **High-wind warning** — pill turns red when winds reach lift-closure thresholds
 - **Powered by Open-Meteo** — free, no API key required
 
+### Safety
+- **Daylight remaining** — pill appears when sunset is within 90 min; turns red under 30 min (SunCalc, no API)
+- **Avalanche awareness** — pill appears when forecast shows heavy new snow, wind-loading, or rapid temperature swings; links to the official local EAWS bulletin
+- **Notification controls** — pause/resume/stop the current recording directly from the persistent notification
+- **Auto end-of-day recap** — celebratory card with share-to-Instagram button auto-shows after 45+ minute sessions
+
 ### Data
 - **GPX import/export** — waypoints and tracks in the standard format
 - **Full backup & restore** — zip of all data (waypoints, tracks, photos, settings)
@@ -99,11 +105,17 @@ app/src/main/kotlin/com/florian/waypoint/
 
   // Tracking
   TrackRecorder.kt         Compose state holder for recording
-  TrackingService.kt       Foreground service for background recording
+  TrackingService.kt       Foreground service with pause/resume/stop notification actions
   TrackStats.kt            Stats computation, run detection, lift filtering, monthly breakdown
   AirTimeDetector.kt       Accelerometer-based jump detection
   Achievements.kt          Personal bests + achievement checking
   ResortDetector.kt        Nominatim reverse geocoding
+  RecordingBridge.kt       Singleton bridge between notification actions and Compose state
+
+  // Safety
+  SunCalc.kt               Sunrise/sunset calculation (NOAA algorithm, no API)
+  AvalancheAwareness.kt    Condition-based awareness from hourly forecast + EAWS links
+  AvalancheAwarenessSheet.kt  Detail sheet with link to official bulletin
 
   // Waypoints
   WaypointCard.kt          Detail card, edit sheet, delete sheet, coord header, hint capsule
@@ -111,9 +123,10 @@ app/src/main/kotlin/com/florian/waypoint/
   WaypointIcons.kt         12 ski-themed preset icons
 
   // Sheets
-  DailyStatsSheet.kt       Today + All-Time tabs, pace chart, personal bests, monthly
+  DailyStatsSheet.kt       Today + All-Time tabs, pace chart, difficulty breakdown, monthly
   TrackDetailSheet.kt      Full track breakdown with elevation profile and runs list
   TrackCompareSheet.kt     Side-by-side track comparison
+  SessionRecapSheet.kt     Auto end-of-day recap with share button
   SpeedometerSheet.kt      Full-screen live dashboard
   WeatherForecastSheet.kt  Current conditions + 24h hourly forecast
   SettingsSheet.kt         All user preferences + About + easter egg

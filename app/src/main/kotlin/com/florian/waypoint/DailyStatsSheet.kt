@@ -139,6 +139,15 @@ fun DailyStatsSheet(
                         )
                     }
 
+                    // Difficulty breakdown — stacked bar showing green/blue/black runs
+                    val runBreakdowns = remember(today) { today.flatMap { computeRunBreakdown(it.points) } }
+                    if (runBreakdowns.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Text("Runs by Difficulty", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        DifficultyBreakdownBar(runs = runBreakdowns)
+                    }
+
                     // Pace of day chart — cumulative vertical
                     val allPoints = remember(today) { today.flatMap { it.points } }
                     if (allPoints.size >= 5) {
@@ -258,6 +267,81 @@ private fun BigStat(label: String, value: String) {
         Text(value, fontWeight = FontWeight.W700, fontSize = 22.sp, color = MaterialTheme.colorScheme.primary)
         Spacer(modifier = Modifier.height(2.dp))
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+    }
+}
+
+/**
+ * Stacked horizontal bar showing the proportion of easy / moderate / steep runs,
+ * with a legend underneath. Counts zero-run days as a no-op (the caller checks).
+ */
+@Composable
+private fun DifficultyBreakdownBar(runs: List<RunBreakdown>) {
+    val easy = runs.count { it.difficulty == RunDifficulty.EASY }
+    val moderate = runs.count { it.difficulty == RunDifficulty.MODERATE }
+    val steep = runs.count { it.difficulty == RunDifficulty.STEEP }
+    val total = (easy + moderate + steep).coerceAtLeast(1)
+
+    val easyColor = Color(difficultyColor(RunDifficulty.EASY))
+    val moderateColor = Color(difficultyColor(RunDifficulty.MODERATE))
+    // "Steep" runs use onSurface so the bar adapts to light/dark mode (black on light, near-white on dark)
+    val steepColor = MaterialTheme.colorScheme.onSurface
+
+    Column {
+        // The stacked bar itself
+        Row(
+            modifier = Modifier.fillMaxWidth().height(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            if (easy > 0) {
+                Surface(
+                    modifier = Modifier.weight(easy.toFloat() / total).fillMaxHeight(),
+                    shape = RoundedCornerShape(6.dp),
+                    color = easyColor
+                ) {}
+            }
+            if (moderate > 0) {
+                Surface(
+                    modifier = Modifier.weight(moderate.toFloat() / total).fillMaxHeight(),
+                    shape = RoundedCornerShape(6.dp),
+                    color = moderateColor
+                ) {}
+            }
+            if (steep > 0) {
+                Surface(
+                    modifier = Modifier.weight(steep.toFloat() / total).fillMaxHeight(),
+                    shape = RoundedCornerShape(6.dp),
+                    color = steepColor
+                ) {}
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        // Legend row: colored dots + counts
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            LegendChip(color = easyColor, label = "Easy", count = easy)
+            LegendChip(color = moderateColor, label = "Moderate", count = moderate)
+            LegendChip(color = steepColor, label = "Steep", count = steep)
+        }
+    }
+}
+
+@Composable
+private fun LegendChip(color: Color, label: String, count: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            modifier = Modifier.size(8.dp),
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = color
+        ) {}
+        Spacer(modifier = Modifier.width(5.dp))
+        Text(
+            "$count $label",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.W500,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 

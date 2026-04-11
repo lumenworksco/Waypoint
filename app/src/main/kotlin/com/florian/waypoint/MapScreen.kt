@@ -96,6 +96,14 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     // Weather
     var weather by remember { mutableStateOf<WeatherData?>(null) }
     var lastWeatherFetch by remember { mutableStateOf(0L) }
+    var lastForecastFetch by remember { mutableStateOf(0L) }
+
+    // Daylight remaining — recomputed every minute while location is known
+    var minutesToSunset by remember { mutableStateOf<Int?>(null) }
+
+    // Avalanche awareness — computed from the hourly forecast
+    var awareness by remember { mutableStateOf<AwarenessAssessment?>(null) }
+    var showAwarenessSheet by remember { mutableStateOf(false) }
 
     // Delete flow
     var pendingDelete by remember { mutableStateOf<Waypoint?>(null) }
@@ -122,6 +130,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     var placeName by remember { mutableStateOf<String?>(null) }
     var lastPlaceFetchLoc by remember { mutableStateOf<GeoPoint?>(null) }
     var showCompare by remember { mutableStateOf(false) }
+    var recapTrack by remember { mutableStateOf<Track?>(null) }
     var showWeatherSheet by remember { mutableStateOf(false) }
     var forecast by remember { mutableStateOf<Forecast?>(null) }
     var showOnboarding by remember { mutableStateOf(store.loadSetting("has_onboarded", "false") != "true") }
@@ -313,6 +322,31 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         }
     }
 
+    // Daylight remaining — refresh every 60s from pure local math
+    LaunchedEffect(userLocation) {
+        while (true) {
+            val loc = userLocation
+            minutesToSunset = loc?.let { minutesUntilSunset(it.latitude, it.longitude) }
+            kotlinx.coroutines.delay(60_000)
+        }
+    }
+
+    // Forecast for avalanche awareness — fetched silently every 30 minutes
+    LaunchedEffect(userLocation) {
+        val loc = userLocation ?: return@LaunchedEffect
+        val now = System.currentTimeMillis()
+        if (now - lastForecastFetch > 30 * 60_000) {
+            lastForecastFetch = now
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val f = fetchForecast(loc.latitude, loc.longitude)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    forecast = f
+                    awareness = assessAvalancheAwareness(f)
+                }
+            }
+        }
+    }
+
     // ── UI ──────────────────────────────────────────────────────
     Box(modifier = Modifier.fillMaxSize()) {
         // Map
@@ -378,6 +412,18 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                     modifier = Modifier.weight(1f, fill = false)
                 )
             }
+            // Daylight pill — only shown when sunset is within 90 minutes
+            minutesToSunset?.let { mins ->
+                if (mins in 0..90) {
+                    DaylightPill(minutesLeft = mins)
+                }
+            }
+
+            // Avalanche awareness pill — only shown when conditions are elevated
+            awareness?.takeIf { it.elevated }?.let {
+                AwarenessPill(onClick = { showAwarenessSheet = true })
+            }
+
             weather?.let { w ->
                 val wind = formatWind(w.windSpeedKmh, useImperial)
                 val tempStr = formatTemperature(w.temperatureC, useImperial)
@@ -546,47 +592,75 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 // Record (with optional pause)
                 if (trackRecorder.isRecording) {
                     MapButton(if (trackRecorder.isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                        if (trackRecorder.isPaused) "Resume" else "Pause") { vibrate(context, light = true); if (trackRecorder.isPaused) trackRecorder.resume() else trackRecorder.pause() }
+                        if (trackRecorder.isPaused) "Resume" else "Pause") {
+                        vibrate(context, light = true)
+                        if (trackRecorder.isPaused) trackRecorder.resume() else trackRecorder.pause()
+                        TrackingService.refresh(context) // update notification state
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
+                val stopRecording: () -> Unit = {
+                    airDetector.stop()
+                    val raw = trackRecorder.stop()
+                    // Auto-name with resort if available
+                    val dateFmt = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
+                    val niceName = if (placeName != null) "${placeName} \u2014 ${dateFmt.format(java.util.Date(raw.startTime))}"
+                    else raw.name
+                    val t = raw.copy(name = niceName)
+                    if (t.points.size >= 2) {
+                        tracks = tracks + t; store.saveTracks(tracks)
+                        // Check achievements against today's totals
+                        val dayStart = startOfDay()
+                        val todayTracks = tracks.filter { it.startTime >= dayStart }
+                        var dayVert = 0.0; var dayRuns = 0; var dayDist = 0.0; var dayMax = 0.0
+                        for (tt in todayTracks) {
+                            val s = computeTrackStats(tt.points)
+                            dayVert += s.verticalDescended ?: 0.0
+                            dayRuns += s.runCount
+                            dayDist += s.distanceMeters
+                            if (s.maxSpeedKmh > dayMax) dayMax = s.maxSpeedKmh
+                        }
+                        val achievements = store.checkAchievements(dayMax, dayVert, dayRuns, dayDist)
+                        if (achievements.isNotEmpty()) {
+                            achievementBanner = achievements.first()
+                            vibrate(context)
+                            scope.launch { kotlinx.coroutines.delay(4000); achievementBanner = null }
+                        }
+                        // Refresh home screen widget
+                        StatsWidget.refreshAll(context)
+                        // Auto-show recap for sessions of 45+ minutes
+                        if ((t.endTime - t.startTime) >= 45 * 60_000L) {
+                            recapTrack = t
+                        }
+                    }
+                    autoFollow = false
+                    RecordingBridge.recorder = null
+                    RecordingBridge.onStop = null
+                    try { context.stopService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
+                }
+
+                // Register the stop callback so the notification "Stop" button can invoke it
+                DisposableEffect(trackRecorder.isRecording) {
+                    if (trackRecorder.isRecording) {
+                        RecordingBridge.recorder = trackRecorder
+                        RecordingBridge.onStop = stopRecording
+                    }
+                    onDispose {
+                        RecordingBridge.recorder = null
+                        RecordingBridge.onStop = null
+                    }
+                }
+
                 RecordButton(isRecording = trackRecorder.isRecording, isPaused = trackRecorder.isPaused) {
                     vibrate(context)
                     if (trackRecorder.isRecording) {
-                        airDetector.stop()
-                        val raw = trackRecorder.stop()
-                        // Auto-name with resort if available
-                        val dateFmt = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
-                        val niceName = if (placeName != null) "${placeName} \u2014 ${dateFmt.format(java.util.Date(raw.startTime))}"
-                        else raw.name
-                        val t = raw.copy(name = niceName)
-                        if (t.points.size >= 2) {
-                            tracks = tracks + t; store.saveTracks(tracks)
-                            // Check achievements against today's totals
-                            val dayStart = startOfDay()
-                            val todayTracks = tracks.filter { it.startTime >= dayStart }
-                            var dayVert = 0.0; var dayRuns = 0; var dayDist = 0.0; var dayMax = 0.0
-                            for (tt in todayTracks) {
-                                val s = computeTrackStats(tt.points)
-                                dayVert += s.verticalDescended ?: 0.0
-                                dayRuns += s.runCount
-                                dayDist += s.distanceMeters
-                                if (s.maxSpeedKmh > dayMax) dayMax = s.maxSpeedKmh
-                            }
-                            val achievements = store.checkAchievements(dayMax, dayVert, dayRuns, dayDist)
-                            if (achievements.isNotEmpty()) {
-                                achievementBanner = achievements.first()
-                                vibrate(context)
-                                scope.launch { kotlinx.coroutines.delay(4000); achievementBanner = null }
-                            }
-                            // Refresh home screen widget
-                            StatsWidget.refreshAll(context)
-                        }
-                        autoFollow = false
-                        try { context.stopService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
+                        stopRecording()
                     } else {
                         trackRecorder.start()
                         airDetector.start()
                         autoFollow = true
+                        RecordingBridge.recorder = trackRecorder
+                        RecordingBridge.onStop = stopRecording
                         try { context.startForegroundService(android.content.Intent(context, TrackingService::class.java)) } catch (_: Exception) { }
                     }
                 }
@@ -732,6 +806,16 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         TrackCompareSheet(tracks = tracks, imperial = useImperial, onDismiss = { showCompare = false })
     }
 
+    recapTrack?.let { t ->
+        SessionRecapSheet(track = t, imperial = useImperial, onDismiss = { recapTrack = null })
+    }
+
+    if (showAwarenessSheet) {
+        awareness?.let { a ->
+            AvalancheAwarenessSheet(assessment = a, placeName = placeName, onDismiss = { showAwarenessSheet = false })
+        }
+    }
+
     if (showWeatherSheet) {
         WeatherForecastSheet(forecast = forecast, imperial = useImperial, placeName = placeName, onDismiss = { showWeatherSheet = false })
     }
@@ -752,6 +836,55 @@ private fun WeatherPill(text: String, warning: Boolean = false, onClick: () -> U
             fontSize = 13.sp,
             fontWeight = FontWeight.W500,
             color = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+// ── Daylight pill ───────────────────────────────────────────────
+/**
+ * Shown when sunset is within 90 minutes. Turns red when under 30 minutes left
+ * to warn the skier that it's time to head down.
+ */
+@Composable
+private fun DaylightPill(minutesLeft: Int) {
+    val urgent = minutesLeft <= 30
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = if (urgent) MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+        else MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        shadowElevation = 4.dp
+    ) {
+        Text(
+            "\u2600\uFE0F ${formatMinutesRemaining(minutesLeft)} of daylight",
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.W500,
+            color = if (urgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+// ── Avalanche awareness pill ───────────────────────────────────
+/**
+ * Shown when the current weather forecast contains at least one elevated-risk
+ * signal (heavy new snow, wind-loading, or rapid temperature swing). Tapping it
+ * opens a sheet explaining the reasoning and linking to the official bulletin.
+ *
+ * Deliberately worded as "awareness" not "forecast" — we never fake a danger rating.
+ */
+@Composable
+private fun AwarenessPill(onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+        shadowElevation = 4.dp
+    ) {
+        Text(
+            "\u26A0\uFE0F Avalanche awareness",
+            modifier = Modifier.iosClickable(onClick).padding(horizontal = 12.dp, vertical = 8.dp),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.W500,
+            color = MaterialTheme.colorScheme.error
         )
     }
 }
