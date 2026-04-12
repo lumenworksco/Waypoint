@@ -4,9 +4,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import androidx.compose.material.icons.filled.Landscape
@@ -21,6 +22,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,185 +48,202 @@ fun DailyStatsSheet(
     onCompare: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     var tab by remember { mutableIntStateOf(0) } // 0 = today, 1 = all time
     val today = remember(tracks) { filterToday(tracks) }
     val todayTotals = remember(today) { aggregate(today) }
     val allTimeTotals = remember(tracks) { aggregate(tracks) }
     val pb = remember(tracks) { computePersonalBests(tracks) }
     val streak = remember(tracks) { computeStreak(tracks) }
+    val months = remember(tracks) { computeMonthlyBreakdown(tracks) }
+    val sheetState = rememberModalBottomSheetState()
+    LaunchedEffect(sheetState.currentValue) {
+        if (sheetState.currentValue != SheetValue.Hidden) {
+            Haptics.tap(context)
+        }
+    }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Landscape, "Ski stats", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(10.dp))
-                Text("Ski Stats", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                if (tracks.size >= 2) {
-                    Surface(
-                        modifier = Modifier.size(40.dp),
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize().iosClickable(onCompare), contentAlignment = Alignment.Center) {
-                            Icon(Icons.AutoMirrored.Filled.CompareArrows, "Compare", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, dragHandle = { DragHandle() }) {
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
+            item(key = "header") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Landscape, "Ski stats", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("Ski Stats", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    if (tracks.size >= 2) {
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize().iosClickable(onCompare), contentAlignment = Alignment.Center) {
+                                Icon(Icons.AutoMirrored.Filled.CompareArrows, "Compare", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
-            }
 
-            // Streak banner
-            if (streak >= 2) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.LocalFireDepartment, "Streak", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("$streak day streak", fontSize = 14.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Tab toggle
-            Row(modifier = Modifier.fillMaxWidth().height(38.dp)) {
-                listOf("Today", "All Time").forEachIndexed { i, label ->
-                    val selected = tab == i
+                // Streak banner
+                if (streak >= 2) {
+                    Spacer(modifier = Modifier.height(12.dp))
                     Surface(
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        shape = if (i == 0) RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
-                        else RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp),
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Box(modifier = Modifier.fillMaxSize().iosClickable { tab = i }, contentAlignment = Alignment.Center) {
-                            Text(label, fontSize = 13.sp, fontWeight = FontWeight.W600,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+                        Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.LocalFireDepartment, "Streak", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("$streak day streak", fontSize = 14.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Tab toggle
+                Row(modifier = Modifier.fillMaxWidth().height(38.dp)) {
+                    listOf("Today", "All Time").forEachIndexed { i, label ->
+                        val selected = tab == i
+                        Surface(
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            shape = if (i == 0) RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
+                            else RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp),
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize().iosClickable { tab = i }, contentAlignment = Alignment.Center) {
+                                Text(label, fontSize = 13.sp, fontWeight = FontWeight.W600,
+                                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+            }
 
             if (tab == 0) {
                 // ── Today ───────────────────────────────────────────
                 if (today.isEmpty()) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("\u26F7\uFE0F", fontSize = 56.sp)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("No runs today", fontSize = 18.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.onSurface)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Hit the slopes and start recording!", fontSize = 14.sp, color = MaterialTheme.colorScheme.outline, textAlign = TextAlign.Center)
+                    item(key = "today_empty") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("\u26F7\uFE0F", fontSize = 56.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("No runs today", fontSize = 18.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.onSurface)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Hit the slopes and start recording!", fontSize = 14.sp, color = MaterialTheme.colorScheme.outline, textAlign = TextAlign.Center)
+                        }
                     }
                 } else {
-                    // ── Activity rings ─────────────────────────────
-                    val verticalGoal = remember { store.loadSetting("goal_vertical_m", "3000").toDoubleOrNull() ?: 3000.0 }
-                    val runsGoal = remember { store.loadSetting("goal_runs", "10").toIntOrNull() ?: 10 }
-                    val timeGoalMs = remember { (store.loadSetting("goal_time_min", "240").toLongOrNull() ?: 240L) * 60_000L }
-                    val ringProgress = computeRingProgress(
-                        vertical = todayTotals.vertical,
-                        verticalGoal = verticalGoal,
-                        runs = todayTotals.runs,
-                        runsGoal = runsGoal,
-                        durationMs = todayTotals.duration,
-                        durationGoalMs = timeGoalMs
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        ActivityRings(
-                            progress = ringProgress,
-                            modifier = Modifier.padding(start = 8.dp),
-                            size = 130.dp,
-                            strokeWidth = 14.dp
-                        )
-                        Spacer(modifier = Modifier.width(20.dp))
-                        RingsLegend(
+                    item(key = "today_stats") {
+                        // ── Activity rings ─────────────────────────────
+                        val verticalGoal = remember { store.loadSetting("goal_vertical_m", "3000").toDoubleOrNull() ?: 3000.0 }
+                        val runsGoal = remember { store.loadSetting("goal_runs", "10").toIntOrNull() ?: 10 }
+                        val timeGoalMs = remember { (store.loadSetting("goal_time_min", "240").toLongOrNull() ?: 240L) * 60_000L }
+                        val ringProgress = computeRingProgress(
                             vertical = todayTotals.vertical,
                             verticalGoal = verticalGoal,
                             runs = todayTotals.runs,
                             runsGoal = runsGoal,
                             durationMs = todayTotals.duration,
-                            durationGoalMs = timeGoalMs,
-                            imperial = imperial,
-                            modifier = Modifier.weight(1f)
+                            durationGoalMs = timeGoalMs
                         )
-                    }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            ActivityRings(
+                                progress = ringProgress,
+                                modifier = Modifier.padding(start = 8.dp),
+                                size = 130.dp,
+                                strokeWidth = 14.dp
+                            )
+                            Spacer(modifier = Modifier.width(20.dp))
+                            RingsLegend(
+                                vertical = todayTotals.vertical,
+                                verticalGoal = verticalGoal,
+                                runs = todayTotals.runs,
+                                runsGoal = runsGoal,
+                                durationMs = todayTotals.duration,
+                                durationGoalMs = timeGoalMs,
+                                imperial = imperial,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        BigStat("Runs", todayTotals.runs.toString())
-                        BigStat("Vertical", formatVertical(todayTotals.vertical, imperial))
-                        BigStat("Max Speed", formatTrackSpeed(todayTotals.maxSpeed))
-                    }
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        BigStat("Distance", formatDistance(todayTotals.distance, imperial).replace(" away", ""))
-                        BigStat("Time", formatDuration(todayTotals.duration))
-                        BigStat("On Snow", "${todayTotals.snowPercent}%")
-                    }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            BigStat("Runs", todayTotals.runs.toString())
+                            BigStat("Vertical", formatVertical(todayTotals.vertical, imperial))
+                            BigStat("Max Speed", formatTrackSpeed(todayTotals.maxSpeed))
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            BigStat("Distance", formatDistance(todayTotals.distance, imperial).replace(" away", ""))
+                            BigStat("Time", formatDuration(todayTotals.duration))
+                            BigStat("On Snow", "${todayTotals.snowPercent}%")
+                        }
 
-                    // First / last
-                    if (today.isNotEmpty()) {
+                        // First / last
+                        if (today.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "First: ${formatTimeOfDay(today.minOf { it.startTime })}  \u00B7  Last: ${formatTimeOfDay(today.maxOf { it.endTime })}",
+                                fontSize = 13.sp, color = MaterialTheme.colorScheme.outline,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+
+                        // Average lift wait time
+                        val avgLiftWait = remember(today) {
+                            val waits = today.mapNotNull { estimateLiftWaitTime(it.points) }
+                            if (waits.isEmpty()) null else waits.average().toLong()
+                        }
+                        if (avgLiftWait != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "Avg lift wait: ${avgLiftWait / 60_000}min",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.outline,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+
+                        // Difficulty breakdown — stacked bar showing green/blue/black runs
+                        val runBreakdowns = remember(today) { today.flatMap { computeRunBreakdown(it.points) } }
+                        if (runBreakdowns.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Text("Runs by Difficulty", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            DifficultyBreakdownBar(runs = runBreakdowns)
+                        }
+
+                        // Pace of day chart — cumulative vertical
+                        val allPoints = remember(today) { today.flatMap { it.points } }
+                        if (allPoints.size >= 5) {
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Text("Vertical Over Time", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            PaceChart(tracks = today, imperial = imperial)
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "First: ${formatTimeOfDay(today.minOf { it.startTime })}  \u00B7  Last: ${formatTimeOfDay(today.maxOf { it.endTime })}",
-                            fontSize = 13.sp, color = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
 
-                    // Average lift wait time
-                    val avgLiftWait = remember(today) {
-                        val waits = today.mapNotNull { estimateLiftWaitTime(it.points) }
-                        if (waits.isEmpty()) null else waits.average().toLong()
-                    }
-                    if (avgLiftWait != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            "Avg lift wait: ${avgLiftWait / 60_000}min",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
-
-                    // Difficulty breakdown — stacked bar showing green/blue/black runs
-                    val runBreakdowns = remember(today) { today.flatMap { computeRunBreakdown(it.points) } }
-                    if (runBreakdowns.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text("Runs by Difficulty", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                        Text("Sessions Today", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
                         Spacer(modifier = Modifier.height(8.dp))
-                        DifficultyBreakdownBar(runs = runBreakdowns)
                     }
 
-                    // Pace of day chart — cumulative vertical
-                    val allPoints = remember(today) { today.flatMap { it.points } }
-                    if (allPoints.size >= 5) {
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text("Vertical Over Time", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        PaceChart(tracks = today, imperial = imperial)
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text("Sessions Today", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    today.forEach { track ->
-                        val stats = remember(track) { computeTrackStats(track.points) }
+                    items(today, key = { it.id }) { track ->
+                        val stats = remember(track) { computeTrackStatsCached(track) }
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -243,86 +262,91 @@ fun DailyStatsSheet(
             } else {
                 // ── All time ────────────────────────────────────────
                 if (tracks.isEmpty()) {
-                    Text(
-                        "No tracks recorded yet.",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(vertical = 16.dp)
-                    )
+                    item(key = "alltime_empty") {
+                        Text(
+                            "No tracks recorded yet.",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(vertical = 16.dp)
+                        )
+                    }
                 } else {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        BigStat("Tracks", tracks.size.toString())
-                        BigStat("Total Runs", allTimeTotals.runs.toString())
-                        BigStat("Total Vertical", formatVertical(allTimeTotals.vertical, imperial))
-                    }
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        BigStat("Distance", formatDistance(allTimeTotals.distance, imperial).replace(" away", ""))
-                        BigStat("Time", formatDuration(allTimeTotals.duration))
-                        BigStat("Days", countUniqueDays(tracks).toString())
-                    }
+                    item(key = "alltime_stats") {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            BigStat("Tracks", tracks.size.toString())
+                            BigStat("Total Runs", allTimeTotals.runs.toString())
+                            BigStat("Total Vertical", formatVertical(allTimeTotals.vertical, imperial))
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            BigStat("Distance", formatDistance(allTimeTotals.distance, imperial).replace(" away", ""))
+                            BigStat("Time", formatDuration(allTimeTotals.duration))
+                            BigStat("Days", countUniqueDays(tracks).toString())
+                        }
 
-                    // Enhanced streak display
-                    if (streak >= 2) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        // Enhanced streak display
+                        if (streak >= 2) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.Filled.LocalFireDepartment, "Streak", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        "$streak day streak!",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.W700,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        "You've been on the mountain $streak days in a row",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.outline
-                                    )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Filled.LocalFireDepartment, "Streak", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            "$streak day streak!",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.W700,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            "You've been on the mountain $streak days in a row",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.outline
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Season calendar heatmap
-                    Spacer(modifier = Modifier.height(20.dp))
-                    Text("Activity", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    SeasonHeatmap(tracks = tracks)
+                        // Season calendar heatmap
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Text("Activity", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        SeasonHeatmap(tracks = tracks)
 
-                    Spacer(modifier = Modifier.height(20.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text("Personal Bests", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        BigStat("Top Speed", formatTrackSpeed(pb.maxSpeedKmh))
-                        BigStat("Best Day", formatVertical(pb.maxDayVertical, imperial))
-                        BigStat("Most Runs", pb.maxDayRuns.toString())
-                    }
-
-                    // Monthly breakdown
-                    val months = remember(tracks) { computeMonthlyBreakdown(tracks) }
-                    if (months.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text("By Month", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Personal Bests", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.height(12.dp))
 
-                        months.forEach { m ->
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            BigStat("Top Speed", formatTrackSpeed(pb.maxSpeedKmh))
+                            BigStat("Best Day", formatVertical(pb.maxDayVertical, imperial))
+                            BigStat("Most Runs", pb.maxDayRuns.toString())
+                        }
+                    }
+
+                    // Monthly breakdown
+                    if (months.isNotEmpty()) {
+                        item(key = "month_header") {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text("By Month", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        items(months, key = { "${it.year}-${it.month}" }) { m ->
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -504,7 +528,7 @@ private fun aggregate(tracks: List<Track>): Totals {
     var runs = 0; var vertical = 0.0; var maxSpeed = 0.0; var distance = 0.0; var duration = 0L
     var snowMs = 0L; var totalMs = 0L
     for (t in tracks) {
-        val s = computeTrackStats(t.points)
+        val s = computeTrackStatsCached(t)
         val tos = computeTimeOnSnow(t.points)
         runs += s.runCount
         vertical += s.verticalDescended ?: 0.0
@@ -538,7 +562,7 @@ private fun SeasonHeatmap(tracks: List<Track>) {
         val map = mutableMapOf<Long, Double>()
         for (t in tracks) {
             val day = startOfDay(t.startTime)
-            val stats = computeTrackStats(t.points)
+            val stats = computeTrackStatsCached(t)
             map[day] = (map[day] ?: 0.0) + (stats.verticalDescended ?: 0.0)
         }
         map

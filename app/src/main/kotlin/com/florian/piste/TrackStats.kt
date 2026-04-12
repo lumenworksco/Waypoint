@@ -1,8 +1,25 @@
 package com.florian.piste
 
+import androidx.compose.runtime.Immutable
 import org.osmdroid.util.GeoPoint
 import kotlin.math.max
 
+// ── Stats cache ────────────────────────────────────────────────
+private val statsCache = java.util.concurrent.ConcurrentHashMap<String, TrackStatistics>()
+
+fun computeTrackStatsCached(track: Track): TrackStatistics {
+    return statsCache.getOrPut(track.id) { computeTrackStats(track.points) }
+}
+
+fun invalidateStatsCache(trackId: String) {
+    statsCache.remove(trackId)
+}
+
+fun clearStatsCache() {
+    statsCache.clear()
+}
+
+@Immutable
 data class TrackStatistics(
     val distanceMeters: Double,
     val durationMs: Long,
@@ -67,6 +84,7 @@ fun computeTrackStats(points: List<TrackPoint>): TrackStatistics {
     )
 }
 
+@Immutable
 data class SkiRun(val startIndex: Int, val endIndex: Int, val verticalDrop: Double)
 
 /**
@@ -139,6 +157,7 @@ fun formatVertical(meters: Double, imperial: Boolean): String =
 
 enum class RunDifficulty(val label: String) { EASY("Easy"), MODERATE("Moderate"), STEEP("Steep") }
 
+@Immutable
 data class RunBreakdown(
     val index: Int,
     val startTime: Long,
@@ -192,6 +211,7 @@ fun computeRunBreakdown(points: List<TrackPoint>): List<RunBreakdown> {
 
 // ── Time on snow vs lifts ───────────────────────────────────────
 
+@Immutable
 data class TimeOnSnow(val snowMs: Long, val liftMs: Long) {
     val snowPercent: Int get() {
         val total = snowMs + liftMs
@@ -274,6 +294,7 @@ fun formatTimeOfDay(ms: Long): String {
 
 // ── Monthly breakdown ───────────────────────────────────────────
 
+@Immutable
 data class MonthStats(
     val year: Int,
     val month: Int, // 1..12
@@ -311,7 +332,7 @@ fun computeMonthlyBreakdown(tracks: List<Track>): List<MonthStats> {
             var runs = 0; var vertical = 0.0; var distance = 0.0; var maxSpeed = 0.0
             val uniqueDays = mutableSetOf<Long>()
             for (t in monthTracks) {
-                val s = computeTrackStats(t.points)
+                val s = computeTrackStatsCached(t)
                 runs += s.runCount
                 vertical += s.verticalDescended ?: 0.0
                 distance += s.distanceMeters

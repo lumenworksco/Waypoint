@@ -26,9 +26,41 @@ fun shareTrackImage(context: Context, track: Track, imperial: Boolean) {
     context.startActivity(Intent.createChooser(intent, "Share track"))
 }
 
+/**
+ * Export a track as GPX and share it, targeting Strava if installed.
+ * Falls back to the generic share chooser when Strava isn't present.
+ */
+fun shareToStrava(context: Context, track: Track, imperial: Boolean) {
+    try {
+        val gpxXml = exportGpx(emptyList(), listOf(track))
+        val dir = File(context.cacheDir, "shared")
+        dir.mkdirs()
+        val file = File(dir, "track_${track.id}.gpx")
+        file.writeText(gpxXml)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/gpx+xml"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        // Try to target Strava directly; fall back to chooser if not installed
+        val stravaPackage = "com.strava"
+        val pm = context.packageManager
+        val stravaInstalled = try {
+            pm.getPackageInfo(stravaPackage, 0); true
+        } catch (_: Exception) { false }
+        if (stravaInstalled) {
+            intent.setPackage(stravaPackage)
+            context.startActivity(intent)
+        } else {
+            context.startActivity(Intent.createChooser(intent, "Share GPX"))
+        }
+    } catch (_: Exception) { }
+}
+
 private fun createTrackBitmap(context: Context, track: Track, imperial: Boolean): Uri? {
     return try {
-        val stats = computeTrackStats(track.points)
+        val stats = computeTrackStatsCached(track)
         val tos = computeTimeOnSnow(track.points)
 
         val d = context.resources.displayMetrics.density

@@ -17,7 +17,7 @@ fun computePersonalBests(tracks: List<Track>): PersonalBests {
     // Max speed ever
     var maxSpeed = 0.0
     for (t in tracks) {
-        val s = computeTrackStats(t.points)
+        val s = computeTrackStatsCached(t)
         if (s.maxSpeedKmh > maxSpeed) maxSpeed = s.maxSpeedKmh
     }
 
@@ -33,7 +33,7 @@ fun computePersonalBests(tracks: List<Track>): PersonalBests {
     for ((_, dayTracks) in dayGroups) {
         var v = 0.0; var r = 0; var d = 0.0
         for (t in dayTracks) {
-            val s = computeTrackStats(t.points)
+            val s = computeTrackStatsCached(t)
             v += s.verticalDescended ?: 0.0
             r += s.runCount
             d += s.distanceMeters

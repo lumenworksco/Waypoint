@@ -23,7 +23,6 @@ fun createBackupZip(context: Context, outputStream: OutputStream) {
         zip.putNextEntry(ZipEntry("settings.json"))
         zip.write(JSONObject().apply {
             put("map_style", prefs.getString("map_style", "STANDARD"))
-            put("coord_format", prefs.getString("coord_format", "DECIMAL"))
             put("waypoint_order", prefs.getString("waypoint_order", "[]"))
         }.toString().toByteArray())
         zip.closeEntry()
@@ -54,7 +53,6 @@ fun restoreBackupZip(context: Context, inputStream: InputStream): Boolean {
                         val json = JSONObject(zip.bufferedReader().readText())
                         prefs.edit().apply {
                             if (json.has("map_style")) putString("map_style", json.getString("map_style"))
-                            if (json.has("coord_format")) putString("coord_format", json.getString("coord_format"))
                             if (json.has("waypoint_order")) putString("waypoint_order", json.getString("waypoint_order"))
                         }.apply()
                     }

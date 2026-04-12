@@ -20,8 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.osmdroid.config.Configuration
-import java.io.File
 
 enum class DistanceUnit(val label: String) { METRIC("Metric (km)"), IMPERIAL("Imperial (mi)") }
 
@@ -44,9 +42,10 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
     var proximityRadius by remember { mutableIntStateOf(
         store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0
     ) }
-    var cacheSize by remember { mutableStateOf(calcCacheSize(context)) }
+    var cacheSize by remember { mutableStateOf(TileCacheManager.cacheSize(context)) }
     var keepScreenOn by remember { mutableStateOf(store.loadSetting("keep_screen_on", "true") == "true") }
     var autoDarkMap by remember { mutableStateOf(store.loadSetting("auto_dark_map", "true") == "true") }
+    var airTimeEnabled by remember { mutableStateOf(store.loadSetting("air_time_enabled", "true") == "true") }
     var widgetMode by remember { mutableStateOf(store.loadSetting("widget_mode", "Today")) }
     var verticalGoal by remember { mutableFloatStateOf(
         store.loadSetting("goal_vertical_m", "3000").toFloatOrNull() ?: 3000f
@@ -61,8 +60,14 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
     // Easter egg state
     var logoTapCount by remember { mutableIntStateOf(0) }
     var showEasterEgg by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    LaunchedEffect(sheetState.currentValue) {
+        if (sheetState.currentValue != SheetValue.Hidden) {
+            Haptics.tap(context)
+        }
+    }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, dragHandle = { DragHandle() }) {
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Settings", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
@@ -235,6 +240,20 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                 }, modifier = Modifier.semantics { contentDescription = "Toggle Auto Dark Map" })
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Air time detection
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Air Time Detection", fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Detect airtime using your phone's accelerometer. May be inaccurate in bumpy terrain.", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                }
+                Switch(checked = airTimeEnabled, onCheckedChange = {
+                    airTimeEnabled = it
+                    store.saveSetting("air_time_enabled", it.toString())
+                }, modifier = Modifier.semantics { contentDescription = "Toggle Air Time Detection" })
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Widget display mode
@@ -268,8 +287,8 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                 Text(cacheSize, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                 Text("Clear cache", fontSize = 14.sp, color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.iosClickable {
-                        clearTileCache(context)
-                        cacheSize = calcCacheSize(context)
+                        TileCacheManager.clearCache(context)
+                        cacheSize = TileCacheManager.cacheSize(context)
                     }.padding(horizontal = 8.dp, vertical = 6.dp))
             }
 
@@ -380,23 +399,4 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
 private fun SettingLabel(text: String) {
     Text(text, fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline)
     Spacer(modifier = Modifier.height(8.dp))
-}
-
-private fun calcCacheSize(context: android.content.Context): String {
-    val cacheDir = Configuration.getInstance().osmdroidTileCache ?: File(context.cacheDir, "osmdroid/tiles")
-    if (!cacheDir.exists()) return "No cached tiles"
-    val bytes = cacheDir.walkTopDown().filter { it.isFile }.sumOf { it.length() }
-    return when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${"%.1f".format(bytes / 1024.0)} KB"
-        else -> "${"%.1f".format(bytes / (1024.0 * 1024.0))} MB"
-    }
-}
-
-private fun clearTileCache(context: android.content.Context) {
-    val cacheDir = Configuration.getInstance().osmdroidTileCache ?: File(context.cacheDir, "osmdroid/tiles")
-    if (cacheDir.exists()) cacheDir.deleteRecursively()
-    // Also clear the SQL cache
-    val sqlDb = File(context.filesDir?.parentFile, "databases")
-    sqlDb.listFiles()?.filter { it.name.startsWith("tile") }?.forEach { it.delete() }
 }

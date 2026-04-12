@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Piste</string>
+    <string name="version">2.0.0</string>
+    <string name="tagline">Crafted in the French Alps</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Welcome to Piste</string>
+    <string name="onboarding_welcome_desc">Your ski companion for tracking runs, saving spots, and exploring the mountain.</string>
+    <string name="onboarding_waypoints_title">Mark your spots</string>
+    <string name="onboarding_waypoints_desc">Long-press anywhere on the map to drop a waypoint. Add photos, notes, colors, and ski-themed icons.</string>
+    <string name="onboarding_tracking_title">Track your runs</string>
+    <string name="onboarding_tracking_desc">Tap the red record button to start tracking. Your vertical, max speed, and runs are detected automatically.</string>
+    <string name="onboarding_dashboard_title">Live dashboard</string>
+    <string name="onboarding_dashboard_desc">Tap the coordinate header for a full-screen speedometer with altitude and vertical descended.</string>
+    <string name="onboarding_explore_title">Explore the mountain</string>
+    <string name="onboarding_explore_desc">Switch between Standard, Piste, Terrain, and Satellite maps. Download tiles to use the app offline.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="distance_unit_label">Distance Unit</string>
+    <string name="default_zoom_label">Default Zoom</string>
+    <string name="proximity_alert_label">Proximity Alert</string>
+    <string name="daily_goals_label">Daily Goals</string>
+    <string name="glare_mode_label">Glare Mode</string>
+    <string name="glare_mode_desc">High-contrast UI for bright snow</string>
+    <string name="keep_screen_on_label">Keep Screen On</string>
+    <string name="keep_screen_on_desc">Stay awake while recording a track</string>
+    <string name="offline_tiles_label">Offline Map Tiles</string>
+    <string name="clear_cache">Clear cache</string>
+
+    <!-- Map -->
+    <string name="downloading_tiles">Downloading tiles\u2026</string>
+    <string name="waypoint_deleted">Waypoint deleted</string>
+    <string name="undo">Undo</string>
+
+    <!-- Empty states -->
+    <string name="no_waypoints_title">No waypoints yet</string>
+    <string name="no_waypoints_desc">Long-press anywhere on the map\nto drop your first waypoint</string>
+    <string name="no_runs_title">No runs today</string>
+    <string name="no_runs_desc">Hit the slopes and start recording!</string>
+    <string name="weather_unavailable_title">Weather data unavailable</string>
+    <string name="weather_unavailable_desc">Move to the mountain to get a forecast</string>
+</resources>

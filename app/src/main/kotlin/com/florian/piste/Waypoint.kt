@@ -1,5 +1,6 @@
 package com.florian.piste
 
+import androidx.compose.runtime.Immutable
 import java.util.UUID
 
 /**
@@ -10,6 +11,7 @@ import java.util.UUID
  * @property photoPath Absolute path to an attached photo in app internal storage, or null.
  * @property icon Key of one of the [WaypointPresetIcons], or null for the default pin.
  */
+@Immutable
 data class Waypoint(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -23,6 +25,7 @@ data class Waypoint(
 )
 
 /** A single GPS sample in a recorded track. */
+@Immutable
 data class TrackPoint(
     val latitude: Double,
     val longitude: Double,
@@ -36,6 +39,7 @@ data class TrackPoint(
  * @property biggestAirMs Longest air-time event detected during recording, in ms.
  * @property airCount Total number of air-time events detected during recording.
  */
+@Immutable
 data class Track(
     val id: String = UUID.randomUUID().toString(),
     val name: String,

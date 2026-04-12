@@ -8,8 +8,6 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
-import android.os.VibrationEffect
-import android.os.Vibrator
 import androidx.compose.ui.graphics.Color
 import org.osmdroid.util.GeoPoint
 import kotlin.math.*
@@ -160,15 +158,4 @@ fun formatSpeed(speedMps: Float, imperial: Boolean = false): String? {
     if (speedMps < 0.3f) return null // standing still
     return if (imperial) "%.1f mph".format(speedMps * 2.23694)
     else "%.1f km/h".format(speedMps * 3.6)
-}
-
-
-fun vibrate(context: Context, light: Boolean = false) {
-    @Suppress("DEPRECATION")
-    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator ?: return
-    val effect = if (light)
-        VibrationEffect.createOneShot(10, VibrationEffect.DEFAULT_AMPLITUDE)
-    else
-        VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE)
-    vibrator.vibrate(effect)
 }

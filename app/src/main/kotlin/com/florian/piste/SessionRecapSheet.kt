@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -32,7 +33,7 @@ fun SessionRecapSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val stats = remember(track) { computeTrackStats(track.points) }
+    val stats = remember(track) { computeTrackStatsCached(track) }
     val tos = remember(track) { computeTimeOnSnow(track.points) }
     val photos = remember(waypoints) { todaysPhotoPaths(waypoints) }
     var showMemories by remember { mutableStateOf(false) }
@@ -117,6 +118,34 @@ fun SessionRecapSheet(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.W600,
                         color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+
+            // Share to Strava button
+            Spacer(modifier = Modifier.height(10.dp))
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFFFC4C02), // Strava orange
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .iosClickable {
+                            shareToStrava(context, track, imperial)
+                        }
+                        .padding(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("\uD83C\uDFC3", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Share to Strava",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.W600,
+                        color = Color.White
                     )
                 }
             }

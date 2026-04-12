@@ -40,9 +40,6 @@ class WaypointStore(context: Context) {
     fun loadMapStyle(): String = prefs.getString("map_style", "STANDARD") ?: "STANDARD"
     fun saveMapStyle(style: String) { prefs.edit().putString("map_style", style).apply() }
 
-    fun loadCoordFormat(): String = prefs.getString("coord_format", "DECIMAL") ?: "DECIMAL"
-    fun saveCoordFormat(format: String) { prefs.edit().putString("coord_format", format).apply() }
-
     // Generic settings
     fun loadSetting(key: String, default: String): String = prefs.getString("setting_$key", default) ?: default
     fun saveSetting(key: String, value: String) { prefs.edit().putString("setting_$key", value).apply() }

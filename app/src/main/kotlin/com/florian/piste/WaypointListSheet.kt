@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,6 +44,12 @@ fun WaypointListSheet(
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
+    val sheetState = rememberModalBottomSheetState()
+    LaunchedEffect(sheetState.currentValue) {
+        if (sheetState.currentValue != SheetValue.Hidden) {
+            Haptics.tap(context)
+        }
+    }
 
     val sorted = if (userLocation != null) {
         waypoints.sortedBy { distanceMeters(userLocation, GeoPoint(it.latitude, it.longitude)) }
@@ -57,7 +64,7 @@ fun WaypointListSheet(
         it.name.contains(searchQuery, ignoreCase = true)
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, dragHandle = { DragHandle() }) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, dragHandle = { DragHandle() }) {
         // Title
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -129,25 +136,46 @@ fun WaypointListSheet(
                 }
 
                 items(filtered, key = { it.id }) { wp ->
-                    WaypointRow(
-                        waypoint = wp,
-                        distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(wp.latitude, wp.longitude))) },
-                        onClick = { onSelectWaypoint(wp) },
-                        onShare = {
-                            val text = "${wp.name}\n${wp.latitude},${wp.longitude}"
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, text)
-                            }
-                            try { context.startActivity(Intent.createChooser(intent, "Share waypoint")) } catch (_: Exception) {}
-                        },
-                        onNavigate = {
-                            val uri = android.net.Uri.parse("geo:0,0?q=${wp.latitude},${wp.longitude}(${android.net.Uri.encode(wp.name)})")
-                            val intent = Intent(Intent.ACTION_VIEW, uri)
-                            try { context.startActivity(intent) } catch (_: Exception) {}
-                        },
-                        onDelete = { onDeleteWaypoint(wp) },
+                    val dismissState = rememberSwipeToDismissBoxState(
+                        confirmValueChange = { value ->
+                            if (value == SwipeToDismissBoxValue.EndToStart) {
+                                onDeleteWaypoint(wp)
+                                true
+                            } else false
+                        }
                     )
+                    SwipeToDismissBox(
+                        state = dismissState,
+                        backgroundContent = {
+                            Box(
+                                modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.error).padding(end = 20.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Icon(Icons.Filled.Delete, "Delete", tint = Color.White)
+                            }
+                        },
+                        enableDismissFromStartToEnd = false
+                    ) {
+                        WaypointRow(
+                            waypoint = wp,
+                            distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(wp.latitude, wp.longitude))) },
+                            onClick = { onSelectWaypoint(wp) },
+                            onShare = {
+                                val text = "${wp.name}\n${wp.latitude},${wp.longitude}"
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, text)
+                                }
+                                try { context.startActivity(Intent.createChooser(intent, "Share waypoint")) } catch (_: Exception) {}
+                            },
+                            onNavigate = {
+                                val uri = android.net.Uri.parse("geo:0,0?q=${wp.latitude},${wp.longitude}(${android.net.Uri.encode(wp.name)})")
+                                val intent = Intent(Intent.ACTION_VIEW, uri)
+                                try { context.startActivity(intent) } catch (_: Exception) {}
+                            },
+                            onDelete = { onDeleteWaypoint(wp) },
+                        )
+                    }
                 }
 
                 if (filteredTracks.isNotEmpty()) {
@@ -158,7 +186,28 @@ fun WaypointListSheet(
                         Text("${filteredTracks.size} track${if (filteredTracks.size != 1) "s" else ""}", fontSize = 13.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.outline, modifier = Modifier.padding(bottom = 6.dp))
                     }
                     items(filteredTracks, key = { it.id }) { track ->
-                        TrackRow(track = track, onClick = { onSelectTrack(track) }, onDelete = { onDeleteTrack(track) })
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { value ->
+                                if (value == SwipeToDismissBoxValue.EndToStart) {
+                                    onDeleteTrack(track)
+                                    true
+                                } else false
+                            }
+                        )
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            backgroundContent = {
+                                Box(
+                                    modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.error).padding(end = 20.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Icon(Icons.Filled.Delete, "Delete", tint = Color.White)
+                                }
+                            },
+                            enableDismissFromStartToEnd = false
+                        ) {
+                            TrackRow(track = track, onClick = { onSelectTrack(track) }, onDelete = { onDeleteTrack(track) })
+                        }
                     }
                 }
             }
@@ -177,7 +226,7 @@ private fun WaypointRow(
 ) {
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
-    Box {
+    Box(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
         Row(
             modifier = Modifier.fillMaxWidth()
                 .iosClickable(
@@ -220,9 +269,9 @@ private fun WaypointRow(
 @Composable
 private fun TrackRow(track: Track, onClick: () -> Unit, onDelete: () -> Unit) {
     val context = LocalContext.current
-    val stats = remember(track) { computeTrackStats(track.points) }
+    val stats = remember(track) { computeTrackStatsCached(track) }
     var menuOpen by remember { mutableStateOf(false) }
-    Box {
+    Box(modifier = Modifier.background(MaterialTheme.colorScheme.surface)) {
         Row(
             modifier = Modifier.fillMaxWidth()
                 .iosClickable(

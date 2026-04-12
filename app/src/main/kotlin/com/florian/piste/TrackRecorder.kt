@@ -1,5 +1,6 @@
 package com.florian.piste
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -80,5 +81,30 @@ class TrackRecorder {
         _airTimes.clear()
         currentPoints = emptyList()
         airTimes = emptyList()
+    }
+
+    companion object {
+        private const val PREFS_NAME = "piste_recovery"
+        private const val KEY_ACTIVE = "recording_active"
+        private const val KEY_START_TIME = "recording_start_time"
+
+        fun markRecordingActive(context: Context) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .putBoolean(KEY_ACTIVE, true)
+                .putLong(KEY_START_TIME, System.currentTimeMillis())
+                .apply()
+        }
+
+        fun markRecordingInactive(context: Context) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+                .remove(KEY_ACTIVE)
+                .remove(KEY_START_TIME)
+                .apply()
+        }
+
+        fun wasRecordingInterrupted(context: Context): Boolean {
+            return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_ACTIVE, false)
+        }
     }
 }

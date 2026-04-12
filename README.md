@@ -136,7 +136,6 @@ app/src/main/kotlin/com/florian/waypoint/
   GpxHelper.kt             GPX import/export with XmlPullParser
   BackupHelper.kt          Zip backup/restore of all app data
   ShareImage.kt            Canvas-rendered PNG stats card + FileProvider share
-  CoordinateFormat.kt      Decimal and DMS coordinate formatting
 
   // Weather
   WeatherHelper.kt         Open-Meteo current + forecast fetch

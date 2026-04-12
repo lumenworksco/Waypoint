@@ -37,7 +37,7 @@ class StatsWidget : AppWidgetProvider() {
                 tracks.filter { it.startTime >= dayStart }
             }
             for (t in source) {
-                val s = computeTrackStats(t.points)
+                val s = computeTrackStatsCached(t)
                 runs += s.runCount
                 vert += s.verticalDescended ?: 0.0
             }

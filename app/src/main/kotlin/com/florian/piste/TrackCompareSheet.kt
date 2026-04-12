@@ -58,8 +58,8 @@ fun TrackCompareSheet(tracks: List<Track>, imperial: Boolean, onDismiss: () -> U
 
             val a = trackA; val b = trackB
             if (a != null && b != null) {
-                val sa = remember(a) { computeTrackStats(a.points) }
-                val sb = remember(b) { computeTrackStats(b.points) }
+                val sa = remember(a) { computeTrackStatsCached(a) }
+                val sb = remember(b) { computeTrackStatsCached(b) }
 
                 CompareRow("Distance", formatDistance(sa.distanceMeters, imperial).replace(" away", ""), formatDistance(sb.distanceMeters, imperial).replace(" away", ""), sa.distanceMeters > sb.distanceMeters)
                 CompareRow("Duration", formatDuration(sa.durationMs), formatDuration(sb.durationMs), sa.durationMs > sb.durationMs)

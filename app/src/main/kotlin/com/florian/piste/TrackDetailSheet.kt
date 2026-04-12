@@ -39,7 +39,7 @@ fun TrackDetailSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val stats = remember(track) { computeTrackStats(track.points) }
+    val stats = remember(track) { computeTrackStatsCached(track) }
     val tos = remember(track) { computeTimeOnSnow(track.points) }
     val runs = remember(track) { computeRunBreakdown(track.points) }
 

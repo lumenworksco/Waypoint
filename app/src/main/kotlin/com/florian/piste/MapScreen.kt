@@ -45,6 +45,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
@@ -71,23 +72,26 @@ import java.io.File
  * controls (record, pause, zoom pill, recenter), the waypoint card, scale bar,
  * achievement banner, undo toast, and the onboarding overlay on first launch.
  *
- * All state lives in [remember] blocks inside this function. Persistence is
- * delegated to [store]. No ViewModel is used — the app is simple enough that
- * Compose state + SharedPreferences is sufficient.
+ * Persistence is delegated to [PisteRepository] via [PisteViewModel].
+ * Waypoints and tracks are observed as [StateFlow]s from the repository.
+ * UI-only state (selected waypoint, sheet visibility, etc.) lives in local
+ * [remember] blocks.
  *
- * @param store The persistent data store for waypoints, tracks, and settings.
+ * @param viewModel The [PisteViewModel] providing repository access and
+ *   location / weather state.
  * @param onToggleGlare Called when the user toggles glare mode in settings; the
  *   caller should update the theme wrapping this composable.
  */
 @Composable
-fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
+fun MapScreen(viewModel: PisteViewModel, onToggleGlare: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val glareMode = LocalGlareMode.current
+    val repo = viewModel.repository
 
     // ── Core state ──────────────────────────────────────────────
-    var waypoints by remember { mutableStateOf(store.load()) }
-    var tracks by remember { mutableStateOf(store.loadTracks()) }
+    val waypoints by repo.waypoints.collectAsStateWithLifecycle()
+    val tracks by repo.tracks.collectAsStateWithLifecycle()
     var selectedWaypoint by remember { mutableStateOf<Waypoint?>(null) }
     var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
     var locationEnabled by remember { mutableStateOf(false) }
@@ -100,7 +104,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showDailyStats by remember { mutableStateOf(false) }
     var downloadProgress by remember { mutableStateOf<Float?>(null) }
-    var mapStyle by remember { mutableStateOf(runCatching { MapStyle.valueOf(store.loadMapStyle()) }.getOrDefault(MapStyle.STANDARD)) }
+    var mapStyle by remember { mutableStateOf(runCatching { MapStyle.valueOf(repo.loadMapStyle()) }.getOrDefault(MapStyle.STANDARD)) }
     var userManuallyChangedStyle by remember { mutableStateOf(false) }
 
     // Weather
@@ -127,9 +131,10 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     // Settings (re-read from prefs each recomposition so changes take effect immediately)
     var showSettings by remember { mutableStateOf(false) }
     var settingsVersion by remember { mutableIntStateOf(0) } // bump to force re-read
-    val useImperial = remember(settingsVersion) { store.loadSetting("distance_unit", "METRIC") == "IMPERIAL" }
+    val useImperial = remember(settingsVersion) { repo.loadSetting("distance_unit", "METRIC") == "IMPERIAL" }
     var lastProximityAlert by remember { mutableStateOf(0L) }
     var lastSpeedAlert by remember { mutableStateOf(0L) }
+    var lastLocationForBearing by remember { mutableStateOf<GeoPoint?>(null) }
 
     val mapViewRef = remember { mutableStateOf<MapView?>(null) }
     var mapRotation by remember { mutableFloatStateOf(0f) }
@@ -145,10 +150,11 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     var recapTrack by remember { mutableStateOf<Track?>(null) }
     var showWeatherSheet by remember { mutableStateOf(false) }
     var forecast by remember { mutableStateOf<Forecast?>(null) }
-    var showOnboarding by remember { mutableStateOf(store.loadSetting("has_onboarded", "false") != "true") }
+    var showOnboarding by remember { mutableStateOf(repo.loadSetting("has_onboarded", "false") != "true") }
     var showNotificationRationale by remember { mutableStateOf(false) }
     var showBatteryPrompt by remember { mutableStateOf(false) }
-    var homeId by remember { mutableStateOf(store.loadHomeId()) }
+    var showRecordingInterrupted by remember { mutableStateOf(false) }
+    var homeId by remember { mutableStateOf(repo.loadHomeId()) }
     val trackRecorder = remember { TrackRecorder() }
     val airDetector = remember { AirTimeDetector(context) { durationMs -> trackRecorder.addAirTime(durationMs) } }
 
@@ -176,13 +182,25 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                     mapViewRef.value?.controller?.animateTo(gp)
                 }
 
+                // Compute user bearing from consecutive location updates
+                val userBearing = lastLocationForBearing?.let { prev -> bearingDegrees(prev, gp) }
+                lastLocationForBearing = gp
+
                 // Proximity alerts — vibrate when within the configured radius of a waypoint
-                val radius = store.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0
+                // Only alerts for waypoints roughly ahead (within 90 degrees of travel direction)
+                val radius = repo.loadSetting("proximity_radius", "0").toIntOrNull() ?: 0
                 if (radius > 0) {
                     val now = System.currentTimeMillis()
                     if (now - lastProximityAlert > 15000) { // max once per 15s
                         for (wp in waypoints) {
-                            if (distanceMeters(gp, GeoPoint(wp.latitude, wp.longitude)) < radius) {
+                            val dist = distanceMeters(gp, GeoPoint(wp.latitude, wp.longitude))
+                            if (dist < radius) {
+                                // Only alert if waypoint is roughly ahead (within 90 degrees of travel direction)
+                                if (userBearing != null) {
+                                    val wpBearing = bearingDegrees(gp, GeoPoint(wp.latitude, wp.longitude))
+                                    val angleDiff = ((wpBearing - userBearing + 360) % 360).let { if (it > 180) 360 - it else it }
+                                    if (angleDiff > 90) continue // behind us, skip
+                                }
                                 Haptics.proximity(context); lastProximityAlert = now; break
                             }
                         }
@@ -190,7 +208,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 }
 
                 // Speed alerts — vibrate when exceeding the configured speed threshold
-                val speedAlertKmh = store.loadSetting("speed_alert_kmh", "0").toIntOrNull() ?: 0
+                val speedAlertKmh = repo.loadSetting("speed_alert_kmh", "0").toIntOrNull() ?: 0
                 if (speedAlertKmh > 0 && loc.hasSpeed()) {
                     val currentKmh = loc.speed * 3.6f
                     val now = System.currentTimeMillis()
@@ -233,8 +251,8 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         uri?.let {
             val xml = context.contentResolver.openInputStream(it)?.bufferedReader()?.readText() ?: return@let
             val data = importGpx(xml)
-            if (data.waypoints.isNotEmpty()) { waypoints = waypoints + data.waypoints; store.save(waypoints) }
-            if (data.tracks.isNotEmpty()) { tracks = tracks + data.tracks; store.saveTracks(tracks) }
+            if (data.waypoints.isNotEmpty()) { repo.importWaypoints(data.waypoints) }
+            if (data.tracks.isNotEmpty()) { repo.importTracks(data.tracks) }
         }
     }
     val backupExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -244,8 +262,8 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         uri?.let {
             context.contentResolver.openInputStream(it)?.use { ins ->
                 if (restoreBackupZip(context, ins)) {
-                    waypoints = store.load(); tracks = store.loadTracks()
-                    mapStyle = runCatching { MapStyle.valueOf(store.loadMapStyle()) }.getOrDefault(MapStyle.STANDARD)
+                    repo.reload()
+                    mapStyle = runCatching { MapStyle.valueOf(repo.loadMapStyle()) }.getOrDefault(MapStyle.STANDARD)
                 }
             }
         }
@@ -270,6 +288,13 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             }
         }
     }
+    // Check if a previous recording was interrupted (e.g. force-kill)
+    LaunchedEffect(Unit) {
+        if (TrackRecorder.wasRecordingInterrupted(context)) {
+            showRecordingInterrupted = true
+            TrackRecorder.markRecordingInactive(context)
+        }
+    }
     DisposableEffect(Unit) {
         onDispose {
             locationClient?.removeLocationUpdates(locationCallback)
@@ -281,7 +306,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     LaunchedEffect(locationEnabled) {
         if (!locationEnabled) return@LaunchedEffect
         val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
-        if (!pm.isIgnoringBatteryOptimizations(context.packageName) && store.loadSetting("battery_prompt_shown", "false") != "true") {
+        if (!pm.isIgnoringBatteryOptimizations(context.packageName) && repo.loadSetting("battery_prompt_shown", "false") != "true") {
             showBatteryPrompt = true
         }
     }
@@ -289,7 +314,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     // Keep screen on while recording (if enabled in settings)
     val view = androidx.compose.ui.platform.LocalView.current
     DisposableEffect(trackRecorder.isRecording, settingsVersion) {
-        val keepOn = store.loadSetting("keep_screen_on", "true") == "true"
+        val keepOn = repo.loadSetting("keep_screen_on", "true") == "true"
         view.keepScreenOn = trackRecorder.isRecording && keepOn
         onDispose { view.keepScreenOn = false }
     }
@@ -369,7 +394,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         val map = mapViewRef.value ?: return@LaunchedEffect; refreshOverlays(map)
         val loc = userLocation ?: return@LaunchedEffect
         if (!hasCenteredOnUser) {
-            val defZoom = store.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
+            val defZoom = repo.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
             map.controller.animateTo(loc, defZoom, 600); hasCenteredOnUser = true
         }
     }
@@ -379,12 +404,12 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     // Auto dark map — switch map tiles when system dark mode changes
     val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
     LaunchedEffect(isSystemDark, settingsVersion) {
-        val autoDark = store.loadSetting("auto_dark_map", "true") == "true"
+        val autoDark = repo.loadSetting("auto_dark_map", "true") == "true"
         if (!autoDark || userManuallyChangedStyle) return@LaunchedEffect
         if (isSystemDark && mapStyle == MapStyle.STANDARD) {
-            mapStyle = MapStyle.DARK; store.saveMapStyle(MapStyle.DARK.name)
+            mapStyle = MapStyle.DARK; repo.saveMapStyle(MapStyle.DARK.name)
         } else if (!isSystemDark && mapStyle == MapStyle.DARK) {
-            mapStyle = MapStyle.STANDARD; store.saveMapStyle(MapStyle.STANDARD.name)
+            mapStyle = MapStyle.STANDARD; repo.saveMapStyle(MapStyle.STANDARD.name)
         }
     }
 
@@ -393,9 +418,9 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         val mins = minutesToSunset ?: return@LaunchedEffect
         if (mins < 0 && mapStyle != MapStyle.DARK) {
             // Auto-switch to dark if auto_dark_map is enabled and user hasn't manually changed style
-            val autoDark = store.loadSetting("auto_dark_map", "true") == "true"
+            val autoDark = repo.loadSetting("auto_dark_map", "true") == "true"
             if (autoDark && !userManuallyChangedStyle) {
-                mapStyle = MapStyle.DARK; store.saveMapStyle(MapStyle.DARK.name)
+                mapStyle = MapStyle.DARK; repo.saveMapStyle(MapStyle.DARK.name)
             } else {
                 // Show a pill suggesting dark mode
                 showNightSkiingPill = true
@@ -450,7 +475,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             MapView(ctx).apply {
                 setTileSource(mapStyle.tileSource()); setMultiTouchControls(true)
                 @Suppress("DEPRECATION") setBuiltInZoomControls(false)
-                val defZoom = store.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
+                val defZoom = repo.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
                 minZoomLevel = 3.0; maxZoomLevel = 20.0; controller.setZoom(defZoom); controller.setCenter(GeoPoint(51.5074, -0.1278))
                 overlays.add(0, MapEventsOverlay(object : MapEventsReceiver {
                     override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
@@ -458,7 +483,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                     }
                     override fun longPressHelper(p: GeoPoint): Boolean {
                         Haptics.mediumTap(ctx); val wp = Waypoint(name = "Waypoint ${waypoints.size + 1}".take(64), latitude = p.latitude, longitude = p.longitude)
-                        waypoints = waypoints + wp; store.save(waypoints); refreshOverlays(this@apply); return true
+                        repo.addWaypoint(wp); refreshOverlays(this@apply); return true
                     }
                 }))
                 overlays.add(RotationGestureOverlay(this))
@@ -518,7 +543,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             // Night skiing pill — shown after sunset (when recording, or as a suggestion to switch to dark map)
             if (showNightSkiingPill || (trackRecorder.isRecording && minutesToSunset != null && minutesToSunset!! < 0)) {
                 NightSkiingPill(onClick = {
-                    mapStyle = MapStyle.DARK; store.saveMapStyle(MapStyle.DARK.name)
+                    mapStyle = MapStyle.DARK; repo.saveMapStyle(MapStyle.DARK.name)
                     showNightSkiingPill = false
                 })
             }
@@ -582,7 +607,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 ) {
                     MapStyle.entries.forEach { style ->
                         DropdownMenuItem(text = { Text(style.label, fontSize = 15.sp) }, onClick = {
-                            mapStyle = style; store.saveMapStyle(style.name); userManuallyChangedStyle = true; mapViewRef.value?.let { it.setTileSource(style.tileSource()); it.invalidate() }; showStyleMenu = false
+                            mapStyle = style; repo.saveMapStyle(style.name); userManuallyChangedStyle = true; mapViewRef.value?.let { it.setTileSource(style.tileSource()); it.invalidate() }; showStyleMenu = false
                         })
                     }
                 }
@@ -684,7 +709,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                         isHome = homeId == sel.id,
                         onToggleHome = {
                             homeId = if (homeId == sel.id) null else sel.id
-                            store.saveHomeId(homeId)
+                            repo.saveHomeId(homeId)
                         },
                         onEdit = { showEditSheet = true }, onDelete = { pendingDelete = sel }, onClose = { selectedWaypoint = null })
                 }
@@ -705,6 +730,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 }
                 val stopRecording: () -> Unit = {
                     airDetector.stop()
+                    TrackRecorder.markRecordingInactive(context)
                     val raw = trackRecorder.stop()
                     // Auto-name with resort if available
                     val dateFmt = java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault())
@@ -712,20 +738,20 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                     else raw.name
                     val t = raw.copy(name = niceName)
                     if (t.points.size >= 2) {
-                        tracks = tracks + t; store.saveTracks(tracks)
+                        repo.addTrack(t)
                         // Check achievements against today's totals
                         val dayStart = startOfDay()
-                        val todayTracks = tracks.filter { it.startTime >= dayStart }
+                        val todayTracks = repo.tracks.value.filter { it.startTime >= dayStart }
                         var dayVert = 0.0; var dayRuns = 0; var dayDist = 0.0; var dayMax = 0.0; var dayDur = 0L
                         for (tt in todayTracks) {
-                            val s = computeTrackStats(tt.points)
+                            val s = computeTrackStatsCached(tt)
                             dayVert += s.verticalDescended ?: 0.0
                             dayRuns += s.runCount
                             dayDist += s.distanceMeters
                             if (s.maxSpeedKmh > dayMax) dayMax = s.maxSpeedKmh
                             dayDur += s.durationMs
                         }
-                        val achievements = store.checkAchievements(dayMax, dayVert, dayRuns, dayDist)
+                        val achievements = repo.checkAchievements(dayMax, dayVert, dayRuns, dayDist)
                         if (achievements.isNotEmpty()) {
                             achievementBanner = achievements.first()
                             Haptics.personalBest(context)
@@ -734,9 +760,9 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                         // Refresh home screen widget
                         StatsWidget.refreshAll(context)
                         // Ring-closed celebration — fire haptic + sound when any goal is met
-                        val vertGoal = store.loadSetting("goal_vertical_m", "3000").toDoubleOrNull() ?: 3000.0
-                        val runsGoal = store.loadSetting("goal_runs", "10").toIntOrNull() ?: 10
-                        val timeGoalMs = (store.loadSetting("goal_time_min", "240").toLongOrNull() ?: 240L) * 60_000L
+                        val vertGoal = repo.loadSetting("goal_vertical_m", "3000").toDoubleOrNull() ?: 3000.0
+                        val runsGoal = repo.loadSetting("goal_runs", "10").toIntOrNull() ?: 10
+                        val timeGoalMs = (repo.loadSetting("goal_time_min", "240").toLongOrNull() ?: 240L) * 60_000L
                         if (dayVert >= vertGoal || dayRuns >= runsGoal || dayDur >= timeGoalMs) {
                             Haptics.ringClosed(context)
                         }
@@ -770,7 +796,10 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                     } else {
                         Haptics.recordStart(context)
                         trackRecorder.start()
-                        airDetector.start()
+                        TrackRecorder.markRecordingActive(context)
+                        if (repo.loadSetting("air_time_enabled", "true") == "true") {
+                            airDetector.start()
+                        }
                         autoFollow = true
                         RecordingBridge.recorder = trackRecorder
                         RecordingBridge.onStop = stopRecording
@@ -789,7 +818,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                 // Recenter
                 RecenterButton(enabled = locationEnabled) {
                     Haptics.tap(context); userLocation?.let {
-                        val z = store.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
+                        val z = repo.loadSetting("default_zoom", "15").toDoubleOrNull() ?: 15.0
                         mapViewRef.value?.controller?.animateTo(it, z, 600)
                     }
                     if (trackRecorder.isRecording) autoFollow = true
@@ -825,7 +854,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Text("Undo", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.W600,
                             modifier = Modifier.iosClickable {
-                                lastDeleted?.let { waypoints = waypoints + it; store.save(waypoints); lastDeleted = null }
+                                lastDeleted?.let { repo.restoreWaypoint(it); lastDeleted = null }
                                 showUndoToast = false
                             }.padding(horizontal = 10.dp, vertical = 8.dp))
                     }
@@ -876,7 +905,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         if (showOnboarding) {
             OnboardingOverlay(onDone = {
                 showOnboarding = false
-                store.saveSetting("has_onboarded", "true")
+                repo.saveSetting("has_onboarded", "true")
             })
         }
     }
@@ -885,7 +914,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
     pendingDelete?.let { wp ->
         DeleteConfirmSheet(waypointName = wp.name, onConfirm = {
             wp.photoPath?.let { File(it).delete() }
-            waypoints = waypoints.filter { it.id != wp.id }; store.save(waypoints); selectedWaypoint = null; lastDeleted = wp; pendingDelete = null
+            repo.deleteWaypoint(wp.id); selectedWaypoint = null; lastDeleted = wp; pendingDelete = null
             showUndoToast = true
             scope.launch { kotlinx.coroutines.delay(5000); showUndoToast = false }
         }, onDismiss = { pendingDelete = null })
@@ -896,8 +925,8 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             EditWaypointSheet(waypoint = wp, onDismiss = { showEditSheet = false },
                 onSave = { name, notes, color, photoPath, icon ->
                     val s = name.trim().take(64).ifBlank { "Unnamed Waypoint" }
-                    waypoints = waypoints.map { if (it.id == wp.id) it.copy(name = s, notes = notes.trim(), color = color, photoPath = photoPath, icon = icon) else it }
-                    store.save(waypoints); selectedWaypoint = waypoints.find { it.id == wp.id }; showEditSheet = false; Haptics.tap(context)
+                    val updated = wp.copy(name = s, notes = notes.trim(), color = color, photoPath = photoPath, icon = icon)
+                    repo.updateWaypoint(updated); selectedWaypoint = updated; showEditSheet = false; Haptics.tap(context)
                 })
         }
     }
@@ -906,21 +935,20 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
         WaypointListSheet(waypoints = waypoints, tracks = tracks, userLocation = userLocation,
             onSelectWaypoint = { wp -> selectedWaypoint = wp; mapViewRef.value?.controller?.animateTo(GeoPoint(wp.latitude, wp.longitude), 18.0, 800); showWaypointList = false },
             onSelectTrack = { track -> selectedTrack = track; if (track.points.isNotEmpty()) { val c = GeoPoint(track.points.sumOf { it.latitude } / track.points.size, track.points.sumOf { it.longitude } / track.points.size); mapViewRef.value?.controller?.animateTo(c, 15.0, 800) }; showWaypointList = false },
-            onDeleteTrack = { track -> tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks) },
+            onDeleteTrack = { track -> repo.deleteTrack(track.id) },
             onDeleteWaypoint = { wp -> pendingDelete = wp; showWaypointList = false },
             onDismiss = { showWaypointList = false })
     }
 
     selectedTrack?.let { track ->
         TrackDetailSheet(track = track, imperial = useImperial, onRename = { renamed ->
-            tracks = tracks.map { if (it.id == renamed.id) renamed else it }
-            store.saveTracks(tracks); selectedTrack = renamed
-        }, onDelete = { tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks); selectedTrack = null }, onDismiss = { selectedTrack = null })
+            repo.updateTrack(renamed); selectedTrack = renamed
+        }, onDelete = { repo.deleteTrack(track.id); selectedTrack = null }, onDismiss = { selectedTrack = null })
     }
 
     if (showSettings) {
         SettingsSheet(
-            store = store,
+            store = repo.directStore,
             glareMode = glareMode,
             onToggleGlare = onToggleGlare,
             onDismiss = { showSettings = false; settingsVersion++ }
@@ -929,7 +957,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
 
     if (showDailyStats) {
         DailyStatsSheet(
-            store = store, tracks = tracks, imperial = useImperial,
+            store = repo.directStore, tracks = tracks, imperial = useImperial,
             onCompare = { showDailyStats = false; showCompare = true },
             onDismiss = { showDailyStats = false }
         )
@@ -1012,7 +1040,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     showBatteryPrompt = false
-                    store.saveSetting("battery_prompt_shown", "true")
+                    repo.saveSetting("battery_prompt_shown", "true")
                     try {
                         val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                             data = android.net.Uri.parse("package:${context.packageName}")
@@ -1024,8 +1052,20 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             dismissButton = {
                 TextButton(onClick = {
                     showBatteryPrompt = false
-                    store.saveSetting("battery_prompt_shown", "true")
+                    repo.saveSetting("battery_prompt_shown", "true")
                 }) { Text("Not Now") }
+            }
+        )
+    }
+
+    // Recording interrupted dialog
+    if (showRecordingInterrupted) {
+        AlertDialog(
+            onDismissRequest = { showRecordingInterrupted = false },
+            title = { Text("Recording Interrupted", fontWeight = FontWeight.W600) },
+            text = { Text("A recording was in progress when the app was closed. Unfortunately the GPS data couldn't be saved.") },
+            confirmButton = {
+                TextButton(onClick = { showRecordingInterrupted = false }) { Text("OK") }
             }
         )
     }

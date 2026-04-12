@@ -56,17 +56,17 @@ fun ActivityRings(
 ) {
     val animSpec = tween<Float>(durationMillis = 900)
     val animVert by animateFloatAsState(
-        targetValue = progress.verticalPct.coerceAtMost(1f),
+        targetValue = progress.verticalPct,
         animationSpec = animSpec,
         label = "vert"
     )
     val animRuns by animateFloatAsState(
-        targetValue = progress.runsPct.coerceAtMost(1f),
+        targetValue = progress.runsPct,
         animationSpec = animSpec,
         label = "runs"
     )
     val animTime by animateFloatAsState(
-        targetValue = progress.timePct.coerceAtMost(1f),
+        targetValue = progress.timePct,
         animationSpec = animSpec,
         label = "time"
     )
@@ -79,7 +79,7 @@ fun ActivityRings(
         // Outermost ring: Vertical (red)
         drawRing(
             color = MoveColor,
-            progress = if (animate) animVert else progress.verticalPct.coerceAtMost(1f),
+            progress = if (animate) animVert else progress.verticalPct,
             topLeft = Offset(padding, padding),
             diameter = fullSize - 2 * padding,
             strokeWidth = sw
@@ -89,7 +89,7 @@ fun ActivityRings(
         val midPad = padding + sw + 4f
         drawRing(
             color = ExerciseColor,
-            progress = if (animate) animRuns else progress.runsPct.coerceAtMost(1f),
+            progress = if (animate) animRuns else progress.runsPct,
             topLeft = Offset(midPad, midPad),
             diameter = fullSize - 2 * midPad,
             strokeWidth = sw
@@ -99,7 +99,7 @@ fun ActivityRings(
         val innerPad = midPad + sw + 4f
         drawRing(
             color = StandColor,
-            progress = if (animate) animTime else progress.timePct.coerceAtMost(1f),
+            progress = if (animate) animTime else progress.timePct,
             topLeft = Offset(innerPad, innerPad),
             diameter = fullSize - 2 * innerPad,
             strokeWidth = sw
@@ -126,16 +126,50 @@ private fun DrawScope.drawRing(
         size = size,
         style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
     )
-    // Active arc — start at -90° so we begin at 12 o'clock
-    drawArc(
-        color = color,
-        startAngle = -90f,
-        sweepAngle = 360f * progress,
-        useCenter = false,
-        topLeft = topLeft,
-        size = size,
-        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-    )
+
+    if (progress <= 1f) {
+        // Normal: single arc from 12 o'clock
+        drawArc(
+            color = color,
+            startAngle = -90f,
+            sweepAngle = 360f * progress,
+            useCenter = false,
+            topLeft = topLeft,
+            size = size,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+    } else {
+        // Over 100%: full ring + glowing overlap
+        drawArc(
+            color = color,
+            startAngle = -90f,
+            sweepAngle = 360f,
+            useCenter = false,
+            topLeft = topLeft,
+            size = size,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+        // Overlap glow (brighter, slightly transparent)
+        val overlapSweep = 360f * (progress - 1f).coerceAtMost(1f)
+        drawArc(
+            color = color.copy(alpha = 0.4f),
+            startAngle = -90f,
+            sweepAngle = overlapSweep,
+            useCenter = false,
+            topLeft = topLeft,
+            size = size,
+            style = Stroke(width = strokeWidth + 4f, cap = StrokeCap.Round)
+        )
+        drawArc(
+            color = color,
+            startAngle = -90f,
+            sweepAngle = overlapSweep,
+            useCenter = false,
+            topLeft = topLeft,
+            size = size,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+    }
 }
 
 /**
