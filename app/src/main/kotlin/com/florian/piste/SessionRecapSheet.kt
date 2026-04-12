@@ -60,7 +60,7 @@ fun SessionRecapSheet(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "Here's your day on the slopes",
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.outline
             )
 
@@ -126,7 +126,7 @@ fun SessionRecapSheet(
             Spacer(modifier = Modifier.height(10.dp))
             Surface(
                 shape = RoundedCornerShape(14.dp),
-                color = Color(0xFFFC4C02), // Strava orange
+                color = Color(0xFFFC4C02), // Strava brand orange
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(

@@ -22,8 +22,8 @@ internal fun WeatherPill(text: String, warning: Boolean = false, onClick: () -> 
         shape = RoundedCornerShape(20.dp),
         color = Color.Transparent,
         shadowElevation = 4.dp,
-        modifier = if (warning) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
-                   else Modifier.iosGlass()
+        modifier = (if (warning) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
+                   else Modifier.iosGlass()).semantics { contentDescription = text }
     ) {
         Text(
             text,
@@ -47,8 +47,8 @@ internal fun DaylightPill(minutesLeft: Int) {
         shape = RoundedCornerShape(20.dp),
         color = Color.Transparent,
         shadowElevation = 4.dp,
-        modifier = if (urgent) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
-                   else Modifier.iosGlass()
+        modifier = (if (urgent) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
+                   else Modifier.iosGlass()).semantics { contentDescription = "$minutesLeft minutes of daylight remaining" }
     ) {
         Text(
             "\u2600\uFE0F ${formatMinutesRemaining(minutesLeft)} of daylight",
@@ -71,7 +71,7 @@ internal fun NightSkiingPill(onClick: () -> Unit = {}) {
         shape = RoundedCornerShape(20.dp),
         color = Color.Transparent,
         shadowElevation = 4.dp,
-        modifier = Modifier.iosGlass()
+        modifier = Modifier.iosGlass().semantics { contentDescription = "Night skiing mode active" }
     ) {
         Text(
             "\uD83C\uDF19 Night skiing \u2014 tap for dark map",
@@ -97,7 +97,7 @@ internal fun AwarenessPill(onClick: () -> Unit) {
         shape = RoundedCornerShape(20.dp),
         color = Color.Transparent,
         shadowElevation = 4.dp,
-        modifier = Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
+        modifier = Modifier.iosGlassTinted(MaterialTheme.colorScheme.error).semantics { contentDescription = "Avalanche awareness warning, tap for details" }
     ) {
         Text(
             "\u26A0\uFE0F Avalanche awareness",
@@ -112,6 +112,7 @@ internal fun AwarenessPill(onClick: () -> Unit) {
 // ── Home arrow pill ─────────────────────────────────────────────
 @Composable
 internal fun HomeArrowPill(distanceText: String, bearing: Float, onClick: () -> Unit) {
+    val arrowColor = MaterialTheme.colorScheme.primary
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = Color.Transparent,
@@ -137,7 +138,7 @@ internal fun HomeArrowPill(distanceText: String, bearing: Float, onClick: () -> 
                     lineTo(cx - 4.dp.toPx(), size.height)
                     close()
                 }
-                drawPath(path, Color(0xFF007AFF))
+                drawPath(path, arrowColor)
             }
             Spacer(modifier = Modifier.width(6.dp))
             Text(

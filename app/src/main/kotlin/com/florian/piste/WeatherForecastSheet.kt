@@ -102,7 +102,7 @@ fun WeatherForecastSheet(forecast: Forecast?, imperial: Boolean, placeName: Stri
                 Spacer(modifier = Modifier.height(12.dp))
                 Surface(shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.error.copy(alpha = 0.12f)) {
                     Text(
-                        "\u26A0 High winds — lifts may close",
+                        "\u26A0 High winds — some lifts may close",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.W500,
                         color = MaterialTheme.colorScheme.error,

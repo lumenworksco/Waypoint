@@ -118,7 +118,7 @@ fun OnboardingOverlay(onDone: () -> Unit) {
 
             // Pagination dots
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
                 repeat(OnboardPages.size) { i ->

@@ -68,7 +68,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, dragHandle = { DragHandle() }) {
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Settings", fontWeight = FontWeight.W600, fontSize = 17.sp, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
                 Surface(
@@ -94,7 +94,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Box(modifier = Modifier.fillMaxSize().iosClickable {
-                            unit = u; store.saveSetting("distance_unit", u.name)
+                            Haptics.tap(context); unit = u; store.saveSetting("distance_unit", u.name)
                         }, contentAlignment = Alignment.Center) {
                             Text(u.label, fontSize = 14.sp, fontWeight = FontWeight.W500,
                                 color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
@@ -267,7 +267,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Box(modifier = Modifier.fillMaxSize().iosClickable {
-                            widgetMode = mode; store.saveSetting("widget_mode", mode)
+                            Haptics.tap(context); widgetMode = mode; store.saveSetting("widget_mode", mode)
                             StatsWidget.refreshAll(context)
                         }, contentAlignment = Alignment.Center) {
                             Text(mode, fontSize = 14.sp, fontWeight = FontWeight.W500,
@@ -289,7 +289,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                     modifier = Modifier.iosClickable {
                         TileCacheManager.clearCache(context)
                         cacheSize = TileCacheManager.cacheSize(context)
-                    }.padding(horizontal = 8.dp, vertical = 6.dp))
+                    }.padding(horizontal = 8.dp, vertical = 8.dp))
             }
 
             Spacer(modifier = Modifier.height(24.dp))

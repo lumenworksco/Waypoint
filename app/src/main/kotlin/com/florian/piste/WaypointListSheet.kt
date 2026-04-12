@@ -230,7 +230,7 @@ private fun WaypointRow(
         Row(
             modifier = Modifier.fillMaxWidth()
                 .iosClickable(
-                    onClick = onClick,
+                    onClick = { Haptics.tap(context); onClick() },
                     onLongPress = {
                         Haptics.pop(context)
                         menuOpen = true

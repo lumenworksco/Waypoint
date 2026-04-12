@@ -106,7 +106,7 @@ fun LocationHeader(
                 )
                 if (speedText != null) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(speedText, fontSize = 12.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.primary)
+                    Text(speedText, fontSize = 13.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.primary)
                 }
             }
             if (altitudeText != null) {
@@ -157,7 +157,7 @@ fun WaypointCard(
         shadowElevation = 6.dp,
         modifier = Modifier.iosGlass(cornerRadius = 16.dp)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(waypoint.color)), CircleShape))
                 Spacer(modifier = Modifier.width(10.dp))
@@ -167,11 +167,11 @@ fun WaypointCard(
                     if (distance != null) Text(distance, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                IosIconButton(Icons.Filled.Edit, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Edit", onEdit)
-                Spacer(modifier = Modifier.width(6.dp))
-                IosIconButton(Icons.Filled.Delete, MaterialTheme.colorScheme.error.copy(alpha = 0.12f), MaterialTheme.colorScheme.error, "Delete", onDelete)
-                Spacer(modifier = Modifier.width(6.dp))
-                IosIconButton(Icons.Filled.Close, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Close", onClose)
+                IosIconButton(Icons.Filled.Edit, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Edit") { Haptics.tap(context); onEdit() }
+                Spacer(modifier = Modifier.width(8.dp))
+                IosIconButton(Icons.Filled.Delete, MaterialTheme.colorScheme.error.copy(alpha = 0.12f), MaterialTheme.colorScheme.error, "Delete") { Haptics.tap(context); onDelete() }
+                Spacer(modifier = Modifier.width(8.dp))
+                IosIconButton(Icons.Filled.Close, MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant, "Close") { Haptics.tap(context); onClose() }
             }
             // Photo thumbnail
             waypoint.photoPath?.let { path ->
@@ -188,9 +188,9 @@ fun WaypointCard(
             // Action row
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IosTextAction("Share") { shareWaypoint(context, waypoint) }
-                IosTextAction("Navigate") { navigateToWaypoint(context, waypoint) }
-                IosTextAction(if (isHome) "Unset Home" else "Set Home", onClick = onToggleHome)
+                IosTextAction("Share") { Haptics.tap(context); shareWaypoint(context, waypoint) }
+                IosTextAction("Navigate") { Haptics.tap(context); navigateToWaypoint(context, waypoint) }
+                IosTextAction(if (isHome) "Unset Home" else "Set Home") { Haptics.tap(context); onToggleHome() }
             }
         }
     }
@@ -210,7 +210,7 @@ private fun IosTextAction(label: String, onClick: () -> Unit) {
 @Composable
 fun IosIconButton(icon: ImageVector, bgColor: Color, iconColor: Color, desc: String, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.size(34.dp),
+        modifier = Modifier.size(44.dp),
         shape = CircleShape,
         color = bgColor
     ) {

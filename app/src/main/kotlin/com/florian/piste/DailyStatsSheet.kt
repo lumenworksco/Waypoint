@@ -65,7 +65,7 @@ fun DailyStatsSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, dragHandle = { DragHandle() }) {
         LazyColumn(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item(key = "header") {
@@ -94,7 +94,7 @@ fun DailyStatsSheet(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.LocalFireDepartment, "Streak", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("$streak day streak", fontSize = 14.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.primary)
@@ -252,7 +252,7 @@ fun DailyStatsSheet(
                                 Text(track.name, fontWeight = FontWeight.W500, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                                 Text(
                                     "${stats.runCount} runs  \u00B7  ${formatVertical(stats.verticalDescended ?: 0.0, imperial)}  \u00B7  ${formatDuration(stats.durationMs)}",
-                                    fontSize = 12.sp,
+                                    fontSize = 13.sp,
                                     color = MaterialTheme.colorScheme.outline
                                 )
                             }
@@ -307,7 +307,7 @@ fun DailyStatsSheet(
                                         )
                                         Text(
                                             "You've been on the mountain $streak days in a row",
-                                            fontSize = 12.sp,
+                                            fontSize = 13.sp,
                                             color = MaterialTheme.colorScheme.outline
                                         )
                                     }
@@ -355,7 +355,7 @@ fun DailyStatsSheet(
                                     Text(m.label, fontSize = 14.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.onSurface)
                                     Text(
                                         "${m.days} day${if (m.days != 1) "s" else ""}  \u00B7  ${m.runs} run${if (m.runs != 1) "s" else ""}  \u00B7  max ${formatTrackSpeed(m.maxSpeedKmh)}",
-                                        fontSize = 12.sp,
+                                        fontSize = 13.sp,
                                         color = MaterialTheme.colorScheme.outline
                                     )
                                 }
@@ -458,7 +458,7 @@ private fun LegendChip(color: Color, label: String, count: Int) {
         Spacer(modifier = Modifier.width(5.dp))
         Text(
             "$count $label",
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.W500,
             color = MaterialTheme.colorScheme.onSurface
         )
