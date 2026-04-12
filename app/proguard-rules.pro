@@ -1,15 +1,19 @@
 # Gson
 -keepattributes Signature
--keep class com.florian.waypoint.Waypoint { *; }
--keep class com.florian.waypoint.Track { *; }
--keep class com.florian.waypoint.TrackPoint { *; }
--keep class com.florian.waypoint.GpxData { *; }
--keep class com.florian.waypoint.TrackStatistics { *; }
+-keep class com.florian.piste.Waypoint { *; }
+-keep class com.florian.piste.Track { *; }
+-keep class com.florian.piste.TrackPoint { *; }
+-keep class com.florian.piste.GpxData { *; }
+-keep class com.florian.piste.TrackStatistics { *; }
 
 # Enums used in settings
--keep enum com.florian.waypoint.DistanceUnit { *; }
--keep enum com.florian.waypoint.MapStyle { *; }
--keep enum com.florian.waypoint.CoordFormat { *; }
+-keep enum com.florian.piste.DistanceUnit { *; }
+-keep enum com.florian.piste.MapStyle { *; }
+
+# Room
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-keep @androidx.room.Dao class *
 
 # osmdroid
 -keep class org.osmdroid.** { *; }
