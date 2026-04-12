@@ -128,7 +128,7 @@ val LocalGlareMode = compositionLocalOf { false }
  * Also provides [LocalGlareMode] so nested composables can query the current mode.
  */
 @Composable
-fun WaypointTheme(glareMode: Boolean = false, content: @Composable () -> Unit) {
+fun PisteTheme(glareMode: Boolean = false, content: @Composable () -> Unit) {
     val scheme = when {
         glareMode -> GlareColors
         isSystemInDarkTheme() -> DarkColors

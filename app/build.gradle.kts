@@ -2,7 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.devtools.ksp")
+
 }
 
 android {
@@ -38,7 +38,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            // Release signing must be configured via environment variables or a
+            // local keystore.properties file before publishing to Google Play.
+            // See: https://developer.android.com/studio/publish/app-signing
         }
     }
 }
@@ -56,15 +58,6 @@ dependencies {
     // Lifecycle & ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
-
-    // Room
-    val roomVersion = "2.7.1"
-    implementation("androidx.room:room-runtime:$roomVersion")
-    implementation("androidx.room:room-ktx:$roomVersion")
-    ksp("androidx.room:room-compiler:$roomVersion")
-
-    // Navigation
-    implementation("androidx.navigation:navigation-compose:2.9.0")
 
     // Coil (image loading)
     implementation("io.coil-kt:coil-compose:2.7.0")

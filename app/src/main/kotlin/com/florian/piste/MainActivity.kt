@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
             var glareMode by remember { mutableStateOf(
                 viewModel.repository.loadSetting("glare_mode", "false") == "true"
             ) }
-            WaypointTheme(glareMode = glareMode) {
+            PisteTheme(glareMode = glareMode) {
                 MapScreen(
                     viewModel = viewModel,
                     onToggleGlare = {

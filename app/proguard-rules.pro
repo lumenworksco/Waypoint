@@ -1,19 +1,15 @@
-# Gson
+# Gson — keep data classes serialized with Gson
 -keepattributes Signature
 -keep class com.florian.piste.Waypoint { *; }
 -keep class com.florian.piste.Track { *; }
 -keep class com.florian.piste.TrackPoint { *; }
 -keep class com.florian.piste.GpxData { *; }
 -keep class com.florian.piste.TrackStatistics { *; }
+-keep class com.florian.piste.PersonalBests { *; }
 
-# Enums used in settings
+# Enums used in settings / Gson
 -keep enum com.florian.piste.DistanceUnit { *; }
 -keep enum com.florian.piste.MapStyle { *; }
-
-# Room
--keep class * extends androidx.room.RoomDatabase
--keep @androidx.room.Entity class *
--keep @androidx.room.Dao class *
 
 # osmdroid
 -keep class org.osmdroid.** { *; }
@@ -21,3 +17,6 @@
 
 # Play Services Location
 -keep class com.google.android.gms.location.** { *; }
+
+# Coil — keep image loading internals
+-dontwarn io.coil.**
