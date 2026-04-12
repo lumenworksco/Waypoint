@@ -208,7 +208,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                     Text("Glare Mode", fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onSurface)
                     Text("High-contrast UI for bright snow", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 }
-                Switch(checked = glareMode, onCheckedChange = { onToggleGlare() },
+                Switch(checked = glareMode, onCheckedChange = { Haptics.tap(context); onToggleGlare() },
                     modifier = Modifier.semantics { contentDescription = "Toggle Glare Mode" })
             }
 
@@ -221,7 +221,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                     Text("Stay awake while recording a track", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 }
                 Switch(checked = keepScreenOn, onCheckedChange = {
-                    keepScreenOn = it
+                    Haptics.tap(context); keepScreenOn = it
                     store.saveSetting("keep_screen_on", it.toString())
                 }, modifier = Modifier.semantics { contentDescription = "Toggle Keep Screen On" })
             }
@@ -235,7 +235,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                     Text("Switch to dark map tiles when system dark mode is active", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 }
                 Switch(checked = autoDarkMap, onCheckedChange = {
-                    autoDarkMap = it
+                    Haptics.tap(context); autoDarkMap = it
                     store.saveSetting("auto_dark_map", it.toString())
                 }, modifier = Modifier.semantics { contentDescription = "Toggle Auto Dark Map" })
             }
@@ -249,7 +249,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                     Text("Detect airtime using your phone's accelerometer. May be inaccurate in bumpy terrain.", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 }
                 Switch(checked = airTimeEnabled, onCheckedChange = {
-                    airTimeEnabled = it
+                    Haptics.tap(context); airTimeEnabled = it
                     store.saveSetting("air_time_enabled", it.toString())
                 }, modifier = Modifier.semantics { contentDescription = "Toggle Air Time Detection" })
             }

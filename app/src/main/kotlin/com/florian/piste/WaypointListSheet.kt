@@ -146,6 +146,7 @@ fun WaypointListSheet(
                     )
                     SwipeToDismissBox(
                         state = dismissState,
+                        modifier = Modifier.animateItem(),
                         backgroundContent = {
                             Box(
                                 modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.error).padding(end = 20.dp),
@@ -196,6 +197,7 @@ fun WaypointListSheet(
                         )
                         SwipeToDismissBox(
                             state = dismissState,
+                            modifier = Modifier.animateItem(),
                             backgroundContent = {
                                 Box(
                                     modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.error).padding(end = 20.dp),

@@ -401,31 +401,16 @@ fun MapScreen(viewModel: PisteViewModel, onToggleGlare: () -> Unit) {
     LaunchedEffect(waypoints, selectedWaypoint, tracks) { mapViewRef.value?.let { refreshOverlays(it) } }
     LaunchedEffect(mapStyle) { mapViewRef.value?.let { it.setTileSource(mapStyle.tileSource()); it.invalidate() } }
 
-    // Auto dark map — switch map tiles when system dark mode changes
-    val isSystemDark = androidx.compose.foundation.isSystemInDarkTheme()
-    LaunchedEffect(isSystemDark, settingsVersion) {
-        val autoDark = repo.loadSetting("auto_dark_map", "true") == "true"
-        if (!autoDark || userManuallyChangedStyle) return@LaunchedEffect
-        if (isSystemDark && mapStyle == MapStyle.STANDARD) {
-            mapStyle = MapStyle.DARK; repo.saveMapStyle(MapStyle.DARK.name)
-        } else if (!isSystemDark && mapStyle == MapStyle.DARK) {
-            mapStyle = MapStyle.STANDARD; repo.saveMapStyle(MapStyle.STANDARD.name)
-        }
-    }
+    // System dark mode only affects UI overlays (via PisteTheme), not the map tiles.
+    // The DARK tile source is too low-contrast for reliable navigation, so we no longer
+    // auto-switch tiles — users can still select Dark manually from the style menu.
 
-    // Night skiing mode — after sunset, suggest dark map or auto-switch
-    LaunchedEffect(minutesToSunset) {
+    // Night skiing mode — after sunset, suggest dark map (but only if not already on DARK)
+    LaunchedEffect(minutesToSunset, mapStyle) {
         val mins = minutesToSunset ?: return@LaunchedEffect
         if (mins < 0 && mapStyle != MapStyle.DARK) {
-            // Auto-switch to dark if auto_dark_map is enabled and user hasn't manually changed style
-            val autoDark = repo.loadSetting("auto_dark_map", "true") == "true"
-            if (autoDark && !userManuallyChangedStyle) {
-                mapStyle = MapStyle.DARK; repo.saveMapStyle(MapStyle.DARK.name)
-            } else {
-                // Show a pill suggesting dark mode
-                showNightSkiingPill = true
-            }
-        } else if (mins >= 0) {
+            showNightSkiingPill = true
+        } else {
             showNightSkiingPill = false
         }
     }
@@ -541,7 +526,7 @@ fun MapScreen(viewModel: PisteViewModel, onToggleGlare: () -> Unit) {
             }
 
             // Night skiing pill — shown after sunset (when recording, or as a suggestion to switch to dark map)
-            if (showNightSkiingPill || (trackRecorder.isRecording && minutesToSunset != null && minutesToSunset!! < 0)) {
+            if ((showNightSkiingPill || (trackRecorder.isRecording && minutesToSunset != null && minutesToSunset!! < 0)) && mapStyle != MapStyle.DARK) {
                 NightSkiingPill(onClick = {
                     mapStyle = MapStyle.DARK; repo.saveMapStyle(MapStyle.DARK.name)
                     showNightSkiingPill = false
@@ -607,7 +592,7 @@ fun MapScreen(viewModel: PisteViewModel, onToggleGlare: () -> Unit) {
                 ) {
                     MapStyle.entries.forEach { style ->
                         DropdownMenuItem(text = { Text(style.label, fontSize = 15.sp) }, onClick = {
-                            mapStyle = style; repo.saveMapStyle(style.name); userManuallyChangedStyle = true; mapViewRef.value?.let { it.setTileSource(style.tileSource()); it.invalidate() }; showStyleMenu = false
+                            Haptics.tap(context); mapStyle = style; repo.saveMapStyle(style.name); userManuallyChangedStyle = true; mapViewRef.value?.let { it.setTileSource(style.tileSource()); it.invalidate() }; showStyleMenu = false
                         })
                     }
                 }
@@ -880,8 +865,10 @@ fun MapScreen(viewModel: PisteViewModel, onToggleGlare: () -> Unit) {
         // Achievement banner
         androidx.compose.animation.AnimatedVisibility(
             visible = achievementBanner != null,
-            enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically { -it },
-            exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically { -it },
+            enter = androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.7f)) + androidx.compose.animation.slideInVertically(
+                animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 300f)
+            ) { -it },
+            exit = androidx.compose.animation.fadeOut(tween(300)) + androidx.compose.animation.slideOutVertically(tween(300)) { -it },
             modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 80.dp)
         ) {
             achievementBanner?.let { text ->

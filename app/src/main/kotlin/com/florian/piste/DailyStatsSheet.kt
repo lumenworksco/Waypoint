@@ -1,5 +1,7 @@
 package com.florian.piste
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -108,15 +110,25 @@ fun DailyStatsSheet(
                 Row(modifier = Modifier.fillMaxWidth().height(38.dp)) {
                     listOf("Today", "All Time").forEachIndexed { i, label ->
                         val selected = tab == i
+                        val animatedBg by animateColorAsState(
+                            targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            animationSpec = tween(200),
+                            label = "tabBg"
+                        )
+                        val animatedText by animateColorAsState(
+                            targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                            animationSpec = tween(200),
+                            label = "tabText"
+                        )
                         Surface(
                             modifier = Modifier.weight(1f).fillMaxHeight(),
                             shape = if (i == 0) RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
                             else RoundedCornerShape(topEnd = 10.dp, bottomEnd = 10.dp),
-                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                            color = animatedBg
                         ) {
-                            Box(modifier = Modifier.fillMaxSize().iosClickable { tab = i }, contentAlignment = Alignment.Center) {
+                            Box(modifier = Modifier.fillMaxSize().iosClickable { Haptics.tap(context); tab = i }, contentAlignment = Alignment.Center) {
                                 Text(label, fontSize = 13.sp, fontWeight = FontWeight.W600,
-                                    color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
+                                    color = animatedText)
                             }
                         }
                     }

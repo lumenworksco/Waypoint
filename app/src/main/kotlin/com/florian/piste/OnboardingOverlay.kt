@@ -1,6 +1,8 @@
 package com.florian.piste
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -11,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -123,10 +126,15 @@ fun OnboardingOverlay(onDone: () -> Unit) {
             ) {
                 repeat(OnboardPages.size) { i ->
                     val selected = i == pagerState.currentPage
+                    val dotSize by animateDpAsState(
+                        targetValue = if (selected) 10.dp else 8.dp,
+                        animationSpec = spring(dampingRatio = 0.6f),
+                        label = "dot"
+                    )
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 4.dp)
-                            .size(if (selected) 10.dp else 8.dp)
+                            .size(dotSize)
                             .background(
                                 if (selected) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),

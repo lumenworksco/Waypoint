@@ -41,8 +41,6 @@ fun Modifier.iosGlass(
     val shape: Shape = RoundedCornerShape(cornerRadius)
     val surface = MaterialTheme.colorScheme.surface
     val base = surface.copy(alpha = tintAlpha)
-    val highlight = Color.White.copy(alpha = 0.15f)
-    val innerShadow = Color.White.copy(alpha = 0.08f)
     val borderColor = Color.White.copy(alpha = 0.25f)
 
     this
@@ -50,18 +48,9 @@ fun Modifier.iosGlass(
         .background(base, shape)
         .background(
             Brush.verticalGradient(
-                colors = listOf(highlight, Color.Transparent),
-                startY = 0f,
-                endY = 48f
-            ),
-            shape
-        )
-        // Subtle inner shadow gradient for extra depth
-        .background(
-            Brush.verticalGradient(
-                colors = listOf(Color.Transparent, innerShadow),
-                startY = 0f,
-                endY = 80f
+                0f to Color.White.copy(alpha = 0.12f),
+                0.4f to Color.White.copy(alpha = 0.04f),
+                1f to Color.Transparent
             ),
             shape
         )
@@ -79,7 +68,6 @@ fun Modifier.iosGlassTinted(
 ): Modifier = composed {
     val shape: Shape = RoundedCornerShape(cornerRadius)
     val base = tint.copy(alpha = 0.15f)
-    val highlight = Color.White.copy(alpha = 0.18f)
     val borderColor = tint.copy(alpha = 0.35f)
 
     this
@@ -87,9 +75,9 @@ fun Modifier.iosGlassTinted(
         .background(base, shape)
         .background(
             Brush.verticalGradient(
-                colors = listOf(highlight, Color.Transparent),
-                startY = 0f,
-                endY = 40f
+                0f to Color.White.copy(alpha = 0.15f),
+                0.4f to Color.White.copy(alpha = 0.05f),
+                1f to Color.Transparent
             ),
             shape
         )
