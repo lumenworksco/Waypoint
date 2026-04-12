@@ -1,5 +1,6 @@
 package com.florian.waypoint
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -22,7 +24,8 @@ import org.osmdroid.util.GeoPoint
 /**
  * Bottom sheet that lists all waypoints (sorted by distance from the user) and recorded
  * tracks, with a search field at the top. Tapping a waypoint flies the map to it and
- * selects it; tapping a track opens the track detail sheet.
+ * selects it; tapping a track opens the track detail sheet. Long-pressing either row
+ * reveals an iOS-style context menu with per-item actions (Share, Navigate, Delete).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,8 +36,10 @@ fun WaypointListSheet(
     onSelectWaypoint: (Waypoint) -> Unit,
     onSelectTrack: (Track) -> Unit,
     onDeleteTrack: (Track) -> Unit,
+    onDeleteWaypoint: (Waypoint) -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
 
     val sorted = if (userLocation != null) {
@@ -94,7 +99,21 @@ fun WaypointListSheet(
                 WaypointRow(
                     waypoint = wp,
                     distance = userLocation?.let { formatDistance(distanceMeters(it, GeoPoint(wp.latitude, wp.longitude))) },
-                    onClick = { onSelectWaypoint(wp) }
+                    onClick = { onSelectWaypoint(wp) },
+                    onShare = {
+                        val text = "${wp.name}\n${wp.latitude},${wp.longitude}"
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                        try { context.startActivity(Intent.createChooser(intent, "Share waypoint")) } catch (_: Exception) {}
+                    },
+                    onNavigate = {
+                        val uri = android.net.Uri.parse("geo:0,0?q=${wp.latitude},${wp.longitude}(${android.net.Uri.encode(wp.name)})")
+                        val intent = Intent(Intent.ACTION_VIEW, uri)
+                        try { context.startActivity(intent) } catch (_: Exception) {}
+                    },
+                    onDelete = { onDeleteWaypoint(wp) },
                 )
             }
 
@@ -114,35 +133,100 @@ fun WaypointListSheet(
 }
 
 @Composable
-private fun WaypointRow(waypoint: Waypoint, distance: String?, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().iosClickable(onClick).padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(waypoint.color)), CircleShape))
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(waypoint.name, fontWeight = FontWeight.W500, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
-            if (waypoint.notes.isNotBlank()) Text(waypoint.notes, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
+private fun WaypointRow(
+    waypoint: Waypoint,
+    distance: String?,
+    onClick: () -> Unit,
+    onShare: () -> Unit,
+    onNavigate: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val context = LocalContext.current
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .iosClickable(
+                    onClick = onClick,
+                    onLongPress = {
+                        Haptics.pop(context)
+                        menuOpen = true
+                    }
+                )
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(waypoint.color)), CircleShape))
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(waypoint.name, fontWeight = FontWeight.W500, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                if (waypoint.notes.isNotBlank()) Text(waypoint.notes, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline, maxLines = 1)
+            }
+            if (distance != null) Text(distance, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
         }
-        if (distance != null) Text(distance, fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            shape = RoundedCornerShape(14.dp),
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+            shadowElevation = 8.dp,
+        ) {
+            DropdownMenuItem(text = { Text("Open", fontSize = 15.sp) }, onClick = { menuOpen = false; onClick() })
+            DropdownMenuItem(text = { Text("Share", fontSize = 15.sp) }, onClick = { menuOpen = false; onShare() })
+            DropdownMenuItem(text = { Text("Navigate", fontSize = 15.sp) }, onClick = { menuOpen = false; onNavigate() })
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 12.dp))
+            DropdownMenuItem(
+                text = { Text("Delete", fontSize = 15.sp, color = MaterialTheme.colorScheme.error) },
+                onClick = { menuOpen = false; onDelete() }
+            )
+        }
     }
 }
 
 @Composable
 private fun TrackRow(track: Track, onClick: () -> Unit, onDelete: () -> Unit) {
+    val context = LocalContext.current
     val stats = remember(track) { computeTrackStats(track.points) }
-    Row(
-        modifier = Modifier.fillMaxWidth().iosClickable(onClick).padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(track.color)), CircleShape))
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(track.name, fontWeight = FontWeight.W500, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
-            Text("${formatDistance(stats.distanceMeters).replace(" away", "")}  \u00B7  ${formatDuration(stats.durationMs)}", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+                .iosClickable(
+                    onClick = onClick,
+                    onLongPress = {
+                        Haptics.pop(context)
+                        menuOpen = true
+                    }
+                )
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(10.dp).background(Color(safeParseColor(track.color)), CircleShape))
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(track.name, fontWeight = FontWeight.W500, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text("${formatDistance(stats.distanceMeters).replace(" away", "")}  \u00B7  ${formatDuration(stats.durationMs)}", fontSize = 13.sp, color = MaterialTheme.colorScheme.outline)
+            }
+            Text("Delete", fontSize = 13.sp, color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.iosClickable(onDelete).padding(horizontal = 8.dp, vertical = 4.dp))
         }
-        Text("Delete", fontSize = 13.sp, color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.iosClickable(onDelete).padding(horizontal = 8.dp, vertical = 4.dp))
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            shape = RoundedCornerShape(14.dp),
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+            shadowElevation = 8.dp,
+        ) {
+            DropdownMenuItem(text = { Text("Open", fontSize = 15.sp) }, onClick = { menuOpen = false; onClick() })
+            DropdownMenuItem(text = { Text("Share", fontSize = 15.sp) }, onClick = {
+                menuOpen = false
+                shareTrackImage(context, track, imperial = false)
+            })
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(horizontal = 12.dp))
+            DropdownMenuItem(
+                text = { Text("Delete", fontSize = 15.sp, color = MaterialTheme.colorScheme.error) },
+                onClick = { menuOpen = false; onDelete() }
+            )
+        }
     }
 }

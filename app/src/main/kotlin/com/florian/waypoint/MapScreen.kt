@@ -763,6 +763,7 @@ fun MapScreen(store: WaypointStore, onToggleGlare: () -> Unit) {
             onSelectWaypoint = { wp -> selectedWaypoint = wp; mapViewRef.value?.controller?.animateTo(GeoPoint(wp.latitude, wp.longitude), 18.0, 800); showWaypointList = false },
             onSelectTrack = { track -> selectedTrack = track; if (track.points.isNotEmpty()) { val c = GeoPoint(track.points.sumOf { it.latitude } / track.points.size, track.points.sumOf { it.longitude } / track.points.size); mapViewRef.value?.controller?.animateTo(c, 15.0, 800) }; showWaypointList = false },
             onDeleteTrack = { track -> tracks = tracks.filter { it.id != track.id }; store.saveTracks(tracks) },
+            onDeleteWaypoint = { wp -> pendingDelete = wp; showWaypointList = false },
             onDismiss = { showWaypointList = false })
     }
 

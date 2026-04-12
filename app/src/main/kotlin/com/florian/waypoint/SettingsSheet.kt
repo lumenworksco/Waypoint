@@ -39,6 +39,16 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
     ) }
     var cacheSize by remember { mutableStateOf(calcCacheSize(context)) }
     var keepScreenOn by remember { mutableStateOf(store.loadSetting("keep_screen_on", "true") == "true") }
+    var soundEnabled by remember { mutableStateOf(store.loadSetting("sound_enabled", "true") == "true") }
+    var verticalGoal by remember { mutableFloatStateOf(
+        store.loadSetting("goal_vertical_m", "3000").toFloatOrNull() ?: 3000f
+    ) }
+    var runsGoal by remember { mutableFloatStateOf(
+        store.loadSetting("goal_runs", "10").toFloatOrNull() ?: 10f
+    ) }
+    var timeGoalMin by remember { mutableFloatStateOf(
+        store.loadSetting("goal_time_min", "240").toFloatOrNull() ?: 240f
+    ) }
 
     // Easter egg state
     var logoTapCount by remember { mutableIntStateOf(0) }
@@ -104,6 +114,48 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Daily goals (activity rings)
+            Text("Daily Goals", fontSize = 13.sp, fontWeight = FontWeight.W600, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Set the three activity rings you'll try to close every day on the mountain.",
+                fontSize = 12.sp, color = MaterialTheme.colorScheme.outline
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+
+            SettingLabel("Vertical Goal: ${verticalGoal.toInt()} m")
+            Slider(
+                value = verticalGoal,
+                onValueChange = { verticalGoal = it; store.saveSetting("goal_vertical_m", it.toInt().toString()) },
+                valueRange = 500f..10_000f,
+                steps = 18,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingLabel("Runs Goal: ${runsGoal.toInt()} runs")
+            Slider(
+                value = runsGoal,
+                onValueChange = { runsGoal = it; store.saveSetting("goal_runs", it.toInt().toString()) },
+                valueRange = 3f..30f,
+                steps = 26,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SettingLabel("Time Goal: ${(timeGoalMin / 60).toInt()}h ${(timeGoalMin % 60).toInt()}m")
+            Slider(
+                value = timeGoalMin,
+                onValueChange = { timeGoalMin = it; store.saveSetting("goal_time_min", it.toInt().toString()) },
+                valueRange = 60f..480f,
+                steps = 13,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Glare mode
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -124,6 +176,20 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                 Switch(checked = keepScreenOn, onCheckedChange = {
                     keepScreenOn = it
                     store.saveSetting("keep_screen_on", it.toString())
+                })
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Sound effects
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Sound Effects", fontSize = 15.sp, fontWeight = FontWeight.W500, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Subtle tones on actions like record and personal bests", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                }
+                Switch(checked = soundEnabled, onCheckedChange = {
+                    soundEnabled = it
+                    store.saveSetting("sound_enabled", it.toString())
                 })
             }
 

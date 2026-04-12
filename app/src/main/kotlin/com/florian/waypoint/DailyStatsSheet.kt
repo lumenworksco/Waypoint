@@ -116,6 +116,41 @@ fun DailyStatsSheet(
                         modifier = Modifier.padding(vertical = 16.dp)
                     )
                 } else {
+                    // ── Activity rings ─────────────────────────────
+                    val verticalGoal = remember { store.loadSetting("goal_vertical_m", "3000").toDoubleOrNull() ?: 3000.0 }
+                    val runsGoal = remember { store.loadSetting("goal_runs", "10").toIntOrNull() ?: 10 }
+                    val timeGoalMs = remember { (store.loadSetting("goal_time_min", "240").toLongOrNull() ?: 240L) * 60_000L }
+                    val ringProgress = computeRingProgress(
+                        vertical = todayTotals.vertical,
+                        verticalGoal = verticalGoal,
+                        runs = todayTotals.runs,
+                        runsGoal = runsGoal,
+                        durationMs = todayTotals.duration,
+                        durationGoalMs = timeGoalMs
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ActivityRings(
+                            progress = ringProgress,
+                            modifier = Modifier.padding(start = 8.dp),
+                            size = 130.dp,
+                            strokeWidth = 14.dp
+                        )
+                        Spacer(modifier = Modifier.width(20.dp))
+                        RingsLegend(
+                            vertical = todayTotals.vertical,
+                            verticalGoal = verticalGoal,
+                            runs = todayTotals.runs,
+                            runsGoal = runsGoal,
+                            durationMs = todayTotals.duration,
+                            durationGoalMs = timeGoalMs,
+                            imperial = imperial,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         BigStat("Runs", todayTotals.runs.toString())
                         BigStat("Vertical", formatVertical(todayTotals.vertical, imperial))
