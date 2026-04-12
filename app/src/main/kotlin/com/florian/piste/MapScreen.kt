@@ -826,38 +826,15 @@ fun MapScreen(viewModel: PisteViewModel, onToggleGlare: () -> Unit) {
                 ) { it },
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 90.dp)
         ) {
-            // Animate the timer progress from 1 to 0 over 5 seconds
-            val timerAnimatable = remember { androidx.compose.animation.core.Animatable(1f) }
-            LaunchedEffect(Unit) {
-                timerAnimatable.snapTo(1f)
-                timerAnimatable.animateTo(0f, animationSpec = tween(durationMillis = 5000, easing = androidx.compose.animation.core.LinearEasing))
-            }
-            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f), shadowElevation = 6.dp) {
-                Column {
-                    Row(modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Waypoint deleted", color = MaterialTheme.colorScheme.surface, fontSize = 14.sp, fontWeight = FontWeight.W500)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("Undo", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.W600,
-                            modifier = Modifier.iosClickable {
-                                lastDeleted?.let { repo.restoreWaypoint(it); lastDeleted = null }
-                                showUndoToast = false
-                            }.padding(horizontal = 10.dp, vertical = 8.dp))
-                    }
-                    // Timer progress line
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(3.dp).padding(horizontal = 4.dp).padding(bottom = 1.dp)
-                    ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val barWidth = size.width * timerAnimatable.value
-                            drawLine(
-                                color = Color(0xFF007AFF),
-                                start = Offset(0f, size.height / 2),
-                                end = Offset(barWidth, size.height / 2),
-                                strokeWidth = size.height,
-                                cap = StrokeCap.Round
-                            )
-                        }
-                    }
+            Surface(shape = RoundedCornerShape(50.dp), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f), shadowElevation = 6.dp) {
+                Row(modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Waypoint deleted", color = MaterialTheme.colorScheme.surface, fontSize = 14.sp, fontWeight = FontWeight.W500)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Undo", color = Color(0xFF007AFF), fontSize = 14.sp, fontWeight = FontWeight.W600,
+                        modifier = Modifier.iosClickable {
+                            lastDeleted?.let { repo.restoreWaypoint(it); lastDeleted = null }
+                            showUndoToast = false
+                        }.padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
         }

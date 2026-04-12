@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -18,12 +19,12 @@ import androidx.compose.ui.unit.sp
 // ── Weather pill ────────────────────────────────────────────────
 @Composable
 internal fun WeatherPill(text: String, warning: Boolean = false, onClick: () -> Unit = {}) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
-        shadowElevation = 4.dp,
-        modifier = (if (warning) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
-                   else Modifier.iosGlass()).semantics { contentDescription = text }
+    Box(
+        modifier = Modifier
+            .shadow(4.dp, RoundedCornerShape(20.dp))
+            .then(if (warning) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
+                  else Modifier.iosGlass())
+            .semantics { contentDescription = text }
     ) {
         Text(
             text,
@@ -43,12 +44,12 @@ internal fun WeatherPill(text: String, warning: Boolean = false, onClick: () -> 
 @Composable
 internal fun DaylightPill(minutesLeft: Int) {
     val urgent = minutesLeft <= 30
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
-        shadowElevation = 4.dp,
-        modifier = (if (urgent) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
-                   else Modifier.iosGlass()).semantics { contentDescription = "$minutesLeft minutes of daylight remaining" }
+    Box(
+        modifier = Modifier
+            .shadow(4.dp, RoundedCornerShape(20.dp))
+            .then(if (urgent) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
+                  else Modifier.iosGlass())
+            .semantics { contentDescription = "$minutesLeft minutes of daylight remaining" }
     ) {
         Text(
             "\u2600\uFE0F ${formatMinutesRemaining(minutesLeft)} of daylight",
@@ -67,11 +68,11 @@ internal fun DaylightPill(minutesLeft: Int) {
  */
 @Composable
 internal fun NightSkiingPill(onClick: () -> Unit = {}) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
-        shadowElevation = 4.dp,
-        modifier = Modifier.iosGlass().semantics { contentDescription = "Night skiing mode active" }
+    Box(
+        modifier = Modifier
+            .shadow(4.dp, RoundedCornerShape(20.dp))
+            .iosGlass()
+            .semantics { contentDescription = "Night skiing mode active" }
     ) {
         Text(
             "\uD83C\uDF19 Night skiing \u2014 tap for dark map",
@@ -93,11 +94,11 @@ internal fun NightSkiingPill(onClick: () -> Unit = {}) {
  */
 @Composable
 internal fun AwarenessPill(onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
-        shadowElevation = 4.dp,
-        modifier = Modifier.iosGlassTinted(MaterialTheme.colorScheme.error).semantics { contentDescription = "Avalanche awareness warning, tap for details" }
+    Box(
+        modifier = Modifier
+            .shadow(4.dp, RoundedCornerShape(20.dp))
+            .iosGlassTinted(MaterialTheme.colorScheme.error)
+            .semantics { contentDescription = "Avalanche awareness warning, tap for details" }
     ) {
         Text(
             "\u26A0\uFE0F Avalanche awareness",
@@ -113,11 +114,10 @@ internal fun AwarenessPill(onClick: () -> Unit) {
 @Composable
 internal fun HomeArrowPill(distanceText: String, bearing: Float, onClick: () -> Unit) {
     val arrowColor = MaterialTheme.colorScheme.primary
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
-        shadowElevation = 4.dp,
-        modifier = Modifier.iosGlass()
+    Box(
+        modifier = Modifier
+            .shadow(4.dp, RoundedCornerShape(20.dp))
+            .iosGlass()
     ) {
         Row(
             modifier = Modifier
