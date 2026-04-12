@@ -78,9 +78,7 @@ fun LocationHeader(
     modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = modifier
-            .shadow(4.dp, RoundedCornerShape(20.dp))
-            .iosGlass()
+        modifier = modifier.iosGlass()
     ) {
         Column(
             modifier = Modifier
@@ -151,10 +149,7 @@ fun WaypointCard(
 ) {
     val context = LocalContext.current
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color.Transparent,
-        shadowElevation = 6.dp,
+    Box(
         modifier = Modifier.iosGlass(cornerRadius = 16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

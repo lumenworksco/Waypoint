@@ -32,7 +32,7 @@ import org.osmdroid.views.overlay.Polyline
 // ── iOS-style map button ────────────────────────────────────────
 @Composable
 internal fun MapButton(icon: ImageVector, description: String, onClick: () -> Unit) {
-    Surface(modifier = Modifier.size(48.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), shadowElevation = 4.dp) {
+    Surface(modifier = Modifier.size(48.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 4.dp) {
         Box(modifier = Modifier.fillMaxSize().iosClickable(onClick), contentAlignment = Alignment.Center) {
             Icon(icon, description, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
         }
@@ -42,7 +42,7 @@ internal fun MapButton(icon: ImageVector, description: String, onClick: () -> Un
 // ── Zoom pill (Apple Maps style) ────────────────────────────────
 @Composable
 internal fun ZoomPill(onZoomIn: () -> Unit, onZoomOut: () -> Unit) {
-    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), shadowElevation = 4.dp) {
+    Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surface, shadowElevation = 4.dp) {
         Column(modifier = Modifier.width(48.dp)) {
             Box(modifier = Modifier.fillMaxWidth().height(48.dp).iosClickable(onZoomIn), contentAlignment = Alignment.Center) {
                 Icon(Icons.Filled.Add, "Zoom in", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
@@ -57,7 +57,7 @@ internal fun ZoomPill(onZoomIn: () -> Unit, onZoomOut: () -> Unit) {
 
 @Composable
 internal fun RecenterButton(enabled: Boolean, onClick: () -> Unit) {
-    Surface(modifier = Modifier.size(50.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f), shadowElevation = 4.dp) {
+    Surface(modifier = Modifier.size(50.dp), shape = CircleShape, color = MaterialTheme.colorScheme.surface, shadowElevation = 4.dp) {
         Box(modifier = Modifier.fillMaxSize().iosClickable { if (enabled) onClick() }, contentAlignment = Alignment.Center) {
             Icon(Icons.Filled.MyLocation, "Center on my location", tint = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.35f), modifier = Modifier.size(22.dp))
         }

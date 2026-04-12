@@ -17,39 +17,30 @@ import androidx.compose.ui.unit.dp
 /**
  * Apple-style glass background for pills, buttons, and sheets.
  *
- * Compose (as of 2026) still lacks a true backdrop-blur API without pulling
- * in external libraries like Haze. This modifier does the next best thing:
- * stacks a tinted base color, a vertical highlight gradient (brighter at the
- * top), and a hairline inner border — the same three layers Apple uses for
- * the .ultraThinMaterial look.
+ * Uses a fully opaque surface base with a subtle top-highlight gradient and
+ * a hairline border to create the appearance of frosted glass. No actual blur
+ * is applied (Compose lacks a backdrop-blur API), but the effect is convincing
+ * when placed over busy content like map tiles.
  *
- * Usage:
- *   Box(modifier = Modifier.iosGlass(cornerRadius = 20.dp)) { ... }
- *
- * Caveats:
- *   - Works on any Android version (no API checks needed)
- *   - Not an actual gaussian blur, but perceptually very close when used
- *     against busy content like map tiles
- *   - The highlight is tuned for light mode; in dark mode it's a touch
- *     subtler automatically because the base surface color is already dark
+ * The background is intentionally opaque to avoid artifacts with elevation
+ * shadows — Material3's Surface elevation tinting draws a visible rectangle
+ * behind semi-transparent backgrounds.
  */
 @Composable
 fun Modifier.iosGlass(
     cornerRadius: Dp = 20.dp,
-    tintAlpha: Float = 0.88f,
 ): Modifier = composed {
     val shape: Shape = RoundedCornerShape(cornerRadius)
     val surface = MaterialTheme.colorScheme.surface
-    val base = surface.copy(alpha = tintAlpha)
-    val borderColor = Color.White.copy(alpha = 0.25f)
+    val borderColor = Color.White.copy(alpha = 0.18f)
 
     this
         .clip(shape)
-        .background(base, shape)
+        .background(surface, shape)
         .background(
             Brush.verticalGradient(
-                0f to Color.White.copy(alpha = 0.12f),
-                0.4f to Color.White.copy(alpha = 0.04f),
+                0f to Color.White.copy(alpha = 0.10f),
+                0.5f to Color.White.copy(alpha = 0.03f),
                 1f to Color.Transparent
             ),
             shape
@@ -59,7 +50,7 @@ fun Modifier.iosGlass(
 
 /**
  * Tinted glass for attention-grabbing pills (warning, error states).
- * Same three-layer approach but with the caller's color as the base tint.
+ * Uses a tinted overlay on an opaque surface base.
  */
 @Composable
 fun Modifier.iosGlassTinted(
@@ -67,16 +58,17 @@ fun Modifier.iosGlassTinted(
     cornerRadius: Dp = 20.dp,
 ): Modifier = composed {
     val shape: Shape = RoundedCornerShape(cornerRadius)
-    val base = tint.copy(alpha = 0.15f)
-    val borderColor = tint.copy(alpha = 0.35f)
+    val surface = MaterialTheme.colorScheme.surface
+    val borderColor = tint.copy(alpha = 0.30f)
 
     this
         .clip(shape)
-        .background(base, shape)
+        .background(surface, shape)
+        .background(tint.copy(alpha = 0.12f), shape)
         .background(
             Brush.verticalGradient(
-                0f to Color.White.copy(alpha = 0.15f),
-                0.4f to Color.White.copy(alpha = 0.05f),
+                0f to Color.White.copy(alpha = 0.12f),
+                0.5f to Color.White.copy(alpha = 0.03f),
                 1f to Color.Transparent
             ),
             shape

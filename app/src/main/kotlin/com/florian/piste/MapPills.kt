@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.sp
 internal fun WeatherPill(text: String, warning: Boolean = false, onClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
-            .shadow(4.dp, RoundedCornerShape(20.dp))
             .then(if (warning) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
                   else Modifier.iosGlass())
             .semantics { contentDescription = text }
@@ -46,7 +45,6 @@ internal fun DaylightPill(minutesLeft: Int) {
     val urgent = minutesLeft <= 30
     Box(
         modifier = Modifier
-            .shadow(4.dp, RoundedCornerShape(20.dp))
             .then(if (urgent) Modifier.iosGlassTinted(MaterialTheme.colorScheme.error)
                   else Modifier.iosGlass())
             .semantics { contentDescription = "$minutesLeft minutes of daylight remaining" }
@@ -70,7 +68,6 @@ internal fun DaylightPill(minutesLeft: Int) {
 internal fun NightSkiingPill(onClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
-            .shadow(4.dp, RoundedCornerShape(20.dp))
             .iosGlass()
             .semantics { contentDescription = "Night skiing mode active" }
     ) {
@@ -96,7 +93,6 @@ internal fun NightSkiingPill(onClick: () -> Unit = {}) {
 internal fun AwarenessPill(onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .shadow(4.dp, RoundedCornerShape(20.dp))
             .iosGlassTinted(MaterialTheme.colorScheme.error)
             .semantics { contentDescription = "Avalanche awareness warning, tap for details" }
     ) {
@@ -116,7 +112,6 @@ internal fun HomeArrowPill(distanceText: String, bearing: Float, onClick: () -> 
     val arrowColor = MaterialTheme.colorScheme.primary
     Box(
         modifier = Modifier
-            .shadow(4.dp, RoundedCornerShape(20.dp))
             .iosGlass()
     ) {
         Row(

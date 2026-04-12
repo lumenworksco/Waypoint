@@ -315,7 +315,7 @@ fun SettingsSheet(store: WaypointStore, glareMode: Boolean, onToggleGlare: () ->
                     }
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Version 2.0.0", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
+                Text("Version 2.1.4", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     "\u26F7\uFE0F  Crafted in the French Alps",
